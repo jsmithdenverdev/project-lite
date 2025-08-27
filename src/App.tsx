@@ -1,5 +1,10 @@
 import ProjectDashboard from "./Dashboard";
+import ErrorBoundary from "./ErrorBoundary";
 
 export default function App() {
-  return <ProjectDashboard />;
+  return (
+    <ErrorBoundary>
+      <ProjectDashboard />
+    </ErrorBoundary>
+  );
 }

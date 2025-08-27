@@ -1,0 +1,20 @@
+{
+  "project": {
+    "id": "",
+    "name": "",
+    "description": "Test project",
+    "type": "invalid_type",
+    "status": "invalid_status",
+    "priority": "invalid_priority",
+    "createdDate": ""
+  },
+  "workItems": [
+    {
+      "id": "",
+      "title": "",
+      "type": "invalid_type",
+      "status": "invalid_status",
+      "priority": "invalid_priority"
+    }
+  ]
+}

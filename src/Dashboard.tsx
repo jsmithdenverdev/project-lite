@@ -1,4 +1,4 @@
-import React, { useState, useMemo, type JSX } from "react";
+import React, { useState, useMemo, useEffect, type JSX } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -12,111 +12,51 @@ import {
   FileText,
   List,
   Zap,
+  Upload,
+  Download,
+  Settings,
+  Layout,
 } from "lucide-react";
+import {
+  ProjectDataSchema,
+  type ProjectData,
+  type WorkItemWithChildren,
+  type StatusType,
+  type PriorityType,
+  type WorkItemType,
+} from "./schemas";
 
-// Type definitions
-interface EstimatedEffort {
-  value: number;
-  unit: "hours" | "days" | "weeks" | "months" | "story_points" | "t_shirt_size";
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  type:
-    | "software"
-    | "infrastructure"
-    | "design"
-    | "research"
-    | "physical"
-    | "other";
-  status: StatusType;
-  priority: "low" | "medium" | "high" | "critical";
-  estimatedEffort?: EstimatedEffort;
-  tags?: string[];
-  createdDate: string;
-  targetDate?: string;
-  owner?: string;
-  stakeholders?: string[];
-  customFields?: Record<string, any>;
-}
-
-interface AcceptanceCriteria {
-  id?: string;
-  description: string;
-  completed?: boolean;
-}
-
-interface Dependency {
-  id?: string;
-  type: "blocks" | "blocked_by" | "relates_to" | "duplicates" | "clones";
-  targetId: string;
-  description?: string;
-}
-
-interface WorkItem {
-  id: string;
-  title: string;
-  description?: string;
-  type: "epic" | "feature" | "story" | "task" | "bug" | "spike" | "research";
-  status:
-    | "backlog"
-    | "todo"
-    | "in_progress"
-    | "review"
-    | "testing"
-    | "done"
-    | "blocked"
-    | "cancelled";
-  priority: "low" | "medium" | "high" | "critical";
-  parentId?: string;
-  estimatedEffort?: EstimatedEffort;
-  actualEffort?: EstimatedEffort;
-  assignee?: string;
-  reporter?: string;
-  createdDate?: string;
-  updatedDate?: string;
-  startDate?: string;
-  dueDate?: string;
-  tags?: string[];
-  acceptanceCriteria?: AcceptanceCriteria[];
-  dependencies?: Dependency[];
-  customFields?: Record<string, any>;
-}
-
-interface WorkItemWithChildren extends WorkItem {
-  children: WorkItemWithChildren[];
-}
-
-interface Metadata {
-  version?: string;
-  lastUpdated?: string;
-  totalWorkItems?: number;
-  completedWorkItems?: number;
-  totalEstimatedEffort?: EstimatedEffort;
-  schemaVersion?: string;
-}
-
-interface ProjectData {
-  project: Project;
-  workItems: WorkItem[];
-  metadata?: Metadata;
-}
-
-type StatusType = WorkItem["status"];
-type PriorityType = WorkItem["priority"];
-type WorkItemType = WorkItem["type"];
 
 const ProjectDashboard: React.FC = () => {
   const [jsonInput, setJsonInput] = useState<string>("");
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
   const [error, setError] = useState<string>("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"metadata" | "project">("metadata");
+  const [fileName, setFileName] = useState<string>("");
+
+  // Update JSON input whenever project data changes
+  useEffect(() => {
+    if (projectData) {
+      setJsonInput(JSON.stringify(projectData, null, 2));
+    }
+  }, [projectData]);
 
   const parseJson = (): void => {
     try {
-      const parsed: ProjectData = JSON.parse(jsonInput);
+      const rawData = JSON.parse(jsonInput);
+      const validationResult = ProjectDataSchema.safeParse(rawData);
+      
+      if (!validationResult.success) {
+        const errorMessages = validationResult.error.issues.map(
+          (err) => `${err.path.join('.')}: ${err.message}`
+        ).join('\n');
+        setError(`Schema validation failed:\n${errorMessages}`);
+        setProjectData(null);
+        return;
+      }
+      
+      const parsed = validationResult.data;
       setProjectData(parsed);
       setError("");
       // Auto-expand epics on load
@@ -125,10 +65,73 @@ const ProjectDashboard: React.FC = () => {
           ?.filter((item) => item.type === "epic")
           .map((item) => item.id) || [];
       setExpandedItems(new Set(epics));
-    } catch (err) {
-      setError("Invalid JSON format. Please check your input.");
+    } catch (e) {
+      setError(`Invalid JSON format: ${e instanceof Error ? e.message : 'Unknown error'}`);
       setProjectData(null);
     }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setJsonInput(content);
+        try {
+          const rawData = JSON.parse(content);
+          const validationResult = ProjectDataSchema.safeParse(rawData);
+          
+          if (!validationResult.success) {
+            const errorMessages = validationResult.error.issues.map(
+              (err) => `${err.path.join('.')}: ${err.message}`
+            ).join('\n');
+            setError(`Schema validation failed in uploaded file:\n${errorMessages}`);
+            setProjectData(null);
+            return;
+          }
+          
+          const parsed = validationResult.data;
+          setProjectData(parsed);
+          setError("");
+          // Auto-expand epics on load
+          const epics =
+            parsed.workItems
+              ?.filter((item) => item.type === "epic")
+              .map((item) => item.id) || [];
+          setExpandedItems(new Set(epics));
+        } catch (e) {
+          setError(`Invalid JSON format in uploaded file: ${e instanceof Error ? e.message : 'Unknown error'}`);
+          setProjectData(null);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleDownload = (): void => {
+    if (projectData) {
+      const dataStr = JSON.stringify(projectData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || "project-data.json";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleUnload = (): void => {
+    handleDownload();
+    setProjectData(null);
+    setJsonInput("");
+    setFileName("");
+    setError("");
+    setExpandedItems(new Set());
   };
 
   const toggleExpanded = (itemId: string): void => {
@@ -204,15 +207,21 @@ const ProjectDashboard: React.FC = () => {
   };
 
   const workItemHierarchy = useMemo((): WorkItemWithChildren[] => {
-    if (!projectData?.workItems) return [];
+    if (!projectData?.workItems || !Array.isArray(projectData.workItems)) return [];
 
-    const items = projectData.workItems;
+    // Filter out invalid items
+    const validItems = projectData.workItems.filter(
+      (item) => item && item.id && item.title
+    );
+    
+    if (validItems.length === 0) return [];
+
     const itemMap = new Map<string, WorkItemWithChildren>(
-      items.map((item) => [item.id, { ...item, children: [] }])
+      validItems.map((item) => [item.id, { ...item, children: [] }])
     );
     const rootItems: WorkItemWithChildren[] = [];
 
-    items.forEach((item) => {
+    validItems.forEach((item) => {
       if (item.parentId && itemMap.has(item.parentId)) {
         const parent = itemMap.get(item.parentId);
         const child = itemMap.get(item.id);
@@ -234,6 +243,11 @@ const ProjectDashboard: React.FC = () => {
     item: WorkItemWithChildren,
     depth: number = 0
   ): JSX.Element => {
+    // Defensive checks to prevent crashes
+    if (!item || !item.id || !item.title) {
+      return <div key="invalid-item" className="text-red-500 text-sm p-2">Invalid work item data</div>;
+    }
+    
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.has(item.id);
     const marginLeft = depth * 24;
@@ -384,11 +398,82 @@ const ProjectDashboard: React.FC = () => {
     );
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
-  ): void => {
-    setJsonInput(e.target.value);
-  };
+
+  const renderMetadataTab = (): JSX.Element => (
+    <div className="space-y-6">
+      {/* Validation Error Display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+          <h4 className="text-sm font-medium text-red-800 mb-2">Validation Error</h4>
+          <pre className="text-sm text-red-700 whitespace-pre-wrap overflow-x-auto">{error}</pre>
+        </div>
+      )}
+
+      {/* File Upload Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Load Project Data
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload JSON File
+            </label>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {fileName && (
+              <p className="mt-2 text-sm text-gray-600">Loaded: {fileName}</p>
+            )}
+          </div>
+          {projectData && (
+            <div className="flex space-x-3">
+              <button
+                onClick={handleDownload}
+                type="button"
+                className="flex items-center space-x-2 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors duration-200"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={handleUnload}
+                type="button"
+                className="flex items-center space-x-2 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors duration-200"
+              >
+                <Download className="w-4 h-4" />
+                <span>Unload</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* JSON Editor */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Direct JSON Editor
+        </h2>
+        <textarea
+          value={jsonInput}
+          onChange={(e) => setJsonInput(e.target.value)}
+          placeholder="Paste your project JSON here..."
+          className="w-full h-96 p-3 border border-gray-300 rounded-md text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <button
+          onClick={parseJson}
+          type="button"
+          className="mt-3 flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+        >
+          <Upload className="w-4 h-4" />
+          <span>Load from Text</span>
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -398,41 +483,53 @@ const ProjectDashboard: React.FC = () => {
             Project Dashboard
           </h1>
           <p className="text-gray-600">
-            Import your project JSON to visualize work items and track progress
+            Load, edit, and manage your project data with enhanced file handling
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* JSON Input Panel */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Project Data
-              </h2>
-              <textarea
-                value={jsonInput}
-                onChange={handleInputChange}
-                placeholder="Paste your project JSON here..."
-                className="w-full h-64 p-3 border border-gray-300 rounded-md text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
               <button
-                onClick={parseJson}
+                onClick={() => setActiveTab("metadata")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "metadata"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
                 type="button"
-                className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
               >
-                Load Project
-              </button>
-              {error && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="flex items-center space-x-2">
+                  <Settings className="w-4 h-4" />
+                  <span>Metadata</span>
                 </div>
-              )}
-            </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("project")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "project"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                } ${!projectData ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={!projectData}
+                type="button"
+              >
+                <div className="flex items-center space-x-2">
+                  <Layout className="w-4 h-4" />
+                  <span>Project</span>
+                </div>
+              </button>
+            </nav>
           </div>
+        </div>
 
-          {/* Dashboard Content */}
-          <div className="lg:col-span-2">
-            {projectData ? (
+        {/* Tab Content */}
+        {activeTab === "metadata" ? (
+          renderMetadataTab()
+        ) : (
+          <div className="space-y-6">
+            {projectData && (
               <>
                 {/* Project Overview */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -519,19 +616,9 @@ const ProjectDashboard: React.FC = () => {
                   )}
                 </div>
               </>
-            ) : (
-              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No Project Loaded
-                </h3>
-                <p className="text-gray-600">
-                  Import your project JSON to get started
-                </p>
-              </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

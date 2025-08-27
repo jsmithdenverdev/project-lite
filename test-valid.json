@@ -1,0 +1,280 @@
+{
+  "project": {
+    "id": "proj-001",
+    "name": "E-commerce Platform Redesign",
+    "description": "Complete redesign of the e-commerce platform to improve user experience and increase conversion rates",
+    "type": "software",
+    "status": "in_progress",
+    "priority": "high",
+    "estimatedEffort": {
+      "value": 12,
+      "unit": "weeks"
+    },
+    "tags": ["frontend", "backend", "mobile", "redesign"],
+    "createdDate": "2024-01-15",
+    "targetDate": "2024-04-15",
+    "owner": "Sarah Johnson",
+    "stakeholders": ["Product Team", "Engineering Team", "Marketing Team"]
+  },
+  "workItems": [
+    {
+      "id": "epic-001",
+      "title": "User Authentication System",
+      "description": "Implement secure user authentication with modern OAuth2 flows",
+      "type": "epic",
+      "status": "in_progress",
+      "priority": "high",
+      "estimatedEffort": {
+        "value": 3,
+        "unit": "weeks"
+      },
+      "assignee": "Alex Chen",
+      "reporter": "Sarah Johnson",
+      "createdDate": "2024-01-15",
+      "updatedDate": "2024-01-20",
+      "dueDate": "2024-02-05",
+      "tags": ["security", "authentication"],
+      "acceptanceCriteria": [
+        {
+          "id": "ac-001",
+          "description": "Users can login with email and password",
+          "completed": true
+        },
+        {
+          "id": "ac-002", 
+          "description": "OAuth2 integration with Google and Facebook",
+          "completed": false
+        },
+        {
+          "id": "ac-003",
+          "description": "Multi-factor authentication support",
+          "completed": false
+        }
+      ]
+    },
+    {
+      "id": "story-001",
+      "title": "Login Page Implementation",
+      "description": "Create responsive login page with form validation",
+      "type": "story",
+      "status": "done",
+      "priority": "high",
+      "parentId": "epic-001",
+      "estimatedEffort": {
+        "value": 5,
+        "unit": "days"
+      },
+      "actualEffort": {
+        "value": 4,
+        "unit": "days"
+      },
+      "assignee": "Maria Garcia",
+      "reporter": "Alex Chen",
+      "createdDate": "2024-01-16",
+      "updatedDate": "2024-01-22",
+      "startDate": "2024-01-16",
+      "dueDate": "2024-01-23",
+      "tags": ["frontend", "ui"],
+      "acceptanceCriteria": [
+        {
+          "id": "ac-004",
+          "description": "Form validates email format",
+          "completed": true
+        },
+        {
+          "id": "ac-005",
+          "description": "Password strength indicator",
+          "completed": true
+        },
+        {
+          "id": "ac-006",
+          "description": "Remember me functionality",
+          "completed": true
+        }
+      ]
+    },
+    {
+      "id": "task-001",
+      "title": "Password Validation Logic",
+      "description": "Implement client-side password validation with strength checking",
+      "type": "task",
+      "status": "done",
+      "priority": "medium",
+      "parentId": "story-001",
+      "estimatedEffort": {
+        "value": 1,
+        "unit": "days"
+      },
+      "actualEffort": {
+        "value": 1,
+        "unit": "days"
+      },
+      "assignee": "Maria Garcia",
+      "reporter": "Alex Chen",
+      "createdDate": "2024-01-17",
+      "updatedDate": "2024-01-18",
+      "startDate": "2024-01-17",
+      "dueDate": "2024-01-18",
+      "tags": ["frontend", "validation"]
+    },
+    {
+      "id": "story-002",
+      "title": "OAuth2 Integration",
+      "description": "Integrate third-party OAuth providers for social login",
+      "type": "story",
+      "status": "in_progress",
+      "priority": "high",
+      "parentId": "epic-001",
+      "estimatedEffort": {
+        "value": 8,
+        "unit": "days"
+      },
+      "assignee": "David Kim",
+      "reporter": "Alex Chen",
+      "createdDate": "2024-01-18",
+      "updatedDate": "2024-01-25",
+      "startDate": "2024-01-20",
+      "dueDate": "2024-01-30",
+      "tags": ["backend", "oauth", "security"],
+      "acceptanceCriteria": [
+        {
+          "id": "ac-007",
+          "description": "Google OAuth2 integration working",
+          "completed": true
+        },
+        {
+          "id": "ac-008",
+          "description": "Facebook OAuth2 integration working",
+          "completed": false
+        },
+        {
+          "id": "ac-009",
+          "description": "User profile data synced from OAuth providers",
+          "completed": false
+        }
+      ]
+    },
+    {
+      "id": "epic-002",
+      "title": "Product Catalog Enhancement",
+      "description": "Improve product browsing and search functionality",
+      "type": "epic",
+      "status": "todo",
+      "priority": "medium",
+      "estimatedEffort": {
+        "value": 4,
+        "unit": "weeks"
+      },
+      "assignee": "Emma Wilson",
+      "reporter": "Sarah Johnson",
+      "createdDate": "2024-01-20",
+      "dueDate": "2024-03-15",
+      "tags": ["catalog", "search", "ui"],
+      "acceptanceCriteria": [
+        {
+          "id": "ac-010",
+          "description": "Advanced search filters implemented",
+          "completed": false
+        },
+        {
+          "id": "ac-011",
+          "description": "Product recommendations based on user behavior",
+          "completed": false
+        },
+        {
+          "id": "ac-012",
+          "description": "Improved product detail pages",
+          "completed": false
+        }
+      ]
+    },
+    {
+      "id": "bug-001",
+      "title": "Cart Total Calculation Error",
+      "description": "Shopping cart sometimes shows incorrect total when discounts are applied",
+      "type": "bug",
+      "status": "review",
+      "priority": "critical",
+      "estimatedEffort": {
+        "value": 2,
+        "unit": "days"
+      },
+      "assignee": "John Rodriguez",
+      "reporter": "QA Team",
+      "createdDate": "2024-01-22",
+      "updatedDate": "2024-01-25",
+      "startDate": "2024-01-23",
+      "dueDate": "2024-01-26",
+      "tags": ["bug", "cart", "calculations"],
+      "acceptanceCriteria": [
+        {
+          "id": "ac-013",
+          "description": "Cart totals are accurate with single discount",
+          "completed": true
+        },
+        {
+          "id": "ac-014",
+          "description": "Cart totals are accurate with multiple discounts",
+          "completed": false
+        },
+        {
+          "id": "ac-015",
+          "description": "Edge cases tested (free shipping, zero total, etc.)",
+          "completed": false
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "dep-001",
+          "type": "blocks",
+          "targetId": "story-003",
+          "description": "Must fix cart calculations before implementing new checkout flow"
+        }
+      ]
+    },
+    {
+      "id": "research-001",
+      "title": "User Behavior Analytics Research",
+      "description": "Research user behavior patterns to inform UX improvements",
+      "type": "research",
+      "status": "backlog",
+      "priority": "low",
+      "estimatedEffort": {
+        "value": 1,
+        "unit": "weeks"
+      },
+      "assignee": "Dr. Lisa Park",
+      "reporter": "Product Team",
+      "createdDate": "2024-01-25",
+      "tags": ["research", "analytics", "ux"],
+      "acceptanceCriteria": [
+        {
+          "id": "ac-016",
+          "description": "Heatmap analysis completed",
+          "completed": false
+        },
+        {
+          "id": "ac-017",
+          "description": "User journey mapping documented",
+          "completed": false
+        },
+        {
+          "id": "ac-018",
+          "description": "Recommendations report delivered",
+          "completed": false
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.2.0",
+    "lastUpdated": "2024-01-25T10:30:00Z",
+    "totalWorkItems": 7,
+    "completedWorkItems": 2,
+    "totalEstimatedEffort": {
+      "value": 16,
+      "unit": "weeks"
+    },
+    "schemaVersion": "1.0"
+  }
+}
