@@ -71,7 +71,7 @@ The application expects JSON input following these key interfaces:
 ### File Operations
 
 - **Upload**: JSON file upload with automatic parsing and schema validation
-- **Download**: Export current project state to JSON file
-- **Unload**: Download and clear project data (reset application state)
+- **Save & Unload Project**: Export current project state to JSON file and reset application
+- **Load from Text**: Parse and validate JSON from the direct text editor
 - **Direct Editing**: Text editor for manual JSON manipulation with validation
 - **Error Prevention**: Invalid data cannot be loaded, preventing app crashes

@@ -110,8 +110,9 @@ const ProjectDashboard: React.FC = () => {
     }
   };
 
-  const handleDownload = (): void => {
+  const handleUnload = (): void => {
     if (projectData) {
+      // Download the file first
       const dataStr = JSON.stringify(projectData, null, 2);
       const dataBlob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(dataBlob);
@@ -122,16 +123,14 @@ const ProjectDashboard: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      
+      // Then clear the application state
+      setProjectData(null);
+      setJsonInput("");
+      setFileName("");
+      setError("");
+      setExpandedItems(new Set());
     }
-  };
-
-  const handleUnload = (): void => {
-    handleDownload();
-    setProjectData(null);
-    setJsonInput("");
-    setFileName("");
-    setError("");
-    setExpandedItems(new Set());
   };
 
   const toggleExpanded = (itemId: string): void => {
@@ -430,24 +429,14 @@ const ProjectDashboard: React.FC = () => {
             )}
           </div>
           {projectData && (
-            <div className="flex space-x-3">
-              <button
-                onClick={handleDownload}
-                type="button"
-                className="flex items-center space-x-2 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors duration-200"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download</span>
-              </button>
-              <button
-                onClick={handleUnload}
-                type="button"
-                className="flex items-center space-x-2 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors duration-200"
-              >
-                <Download className="w-4 h-4" />
-                <span>Unload</span>
-              </button>
-            </div>
+            <button
+              onClick={handleUnload}
+              type="button"
+              className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+            >
+              <Download className="w-4 h-4" />
+              <span>Save & Unload Project</span>
+            </button>
           )}
         </div>
       </div>
