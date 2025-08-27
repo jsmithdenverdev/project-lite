@@ -170,26 +170,26 @@ const ProjectDashboard: React.FC = () => {
 
   const getStatusColor = (status: StatusType): string => {
     const colors: Record<StatusType, string> = {
-      backlog: "bg-gray-100 text-gray-700",
-      todo: "bg-blue-100 text-blue-700",
-      in_progress: "bg-yellow-100 text-yellow-700",
-      review: "bg-purple-100 text-purple-700",
-      testing: "bg-orange-100 text-orange-700",
-      done: "bg-green-100 text-green-700",
-      blocked: "bg-red-100 text-red-700",
-      cancelled: "bg-gray-100 text-gray-500",
+      backlog: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+      todo: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+      in_progress: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+      review: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+      testing: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+      done: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+      blocked: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+      cancelled: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
     };
-    return colors[status] || "bg-gray-100 text-gray-700";
+    return colors[status] || "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300";
   };
 
   const getPriorityColor = (priority: PriorityType): string => {
     const colors: Record<PriorityType, string> = {
-      low: "text-gray-500",
-      medium: "text-blue-500",
-      high: "text-orange-500",
-      critical: "text-red-500",
+      low: "text-gray-500 dark:text-gray-400",
+      medium: "text-blue-500 dark:text-blue-400",
+      high: "text-orange-500 dark:text-orange-400",
+      critical: "text-red-500 dark:text-red-400",
     };
-    return colors[priority] || "text-gray-500";
+    return colors[priority] || "text-gray-500 dark:text-gray-400";
   };
 
   const getTypeIcon = (type: WorkItemType): JSX.Element => {
@@ -254,7 +254,7 @@ const ProjectDashboard: React.FC = () => {
     return (
       <div key={item.id} className="mb-2">
         <div
-          className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+          className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
           style={{ marginLeft: `${marginLeft}px` }}
         >
           <div className="flex items-start justify-between">
@@ -262,7 +262,7 @@ const ProjectDashboard: React.FC = () => {
               {hasChildren && (
                 <button
                   onClick={() => toggleExpanded(item.id)}
-                  className="mt-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="mt-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
                   type="button"
                 >
                   {isExpanded ? (
@@ -287,16 +287,16 @@ const ProjectDashboard: React.FC = () => {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
                   {item.title}
                 </h3>
                 {item.description && (
-                  <p className="text-sm text-gray-600 mb-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                     {item.description}
                   </p>
                 )}
 
-                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                   {item.assignee && (
                     <div className="flex items-center space-x-1">
                       <User className="w-3 h-3" />
@@ -335,7 +335,7 @@ const ProjectDashboard: React.FC = () => {
                 {item.acceptanceCriteria &&
                   item.acceptanceCriteria.length > 0 && (
                     <div className="mt-3">
-                      <h4 className="text-xs font-medium text-gray-700 mb-2">
+                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Acceptance Criteria
                       </h4>
                       <div className="space-y-1">
@@ -354,13 +354,13 @@ const ProjectDashboard: React.FC = () => {
                                   e.target.checked
                                 )
                               }
-                              className="w-3 h-3 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 mt-0.5 flex-shrink-0"
+                              className="w-3 h-3 text-green-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-green-500 focus:ring-2 mt-0.5 flex-shrink-0"
                             />
                             <span
                               className={
                                 ac.completed
-                                  ? "text-green-700 italic"
-                                  : "text-gray-600"
+                                  ? "text-green-700 dark:text-green-400 italic"
+                                  : "text-gray-600 dark:text-gray-300"
                               }
                             >
                               {ac.description}
@@ -376,7 +376,7 @@ const ProjectDashboard: React.FC = () => {
                     {item.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                        className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs"
                       >
                         {tag}
                       </span>
@@ -402,20 +402,20 @@ const ProjectDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Validation Error Display */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <h4 className="text-sm font-medium text-red-800 mb-2">Validation Error</h4>
-          <pre className="text-sm text-red-700 whitespace-pre-wrap overflow-x-auto">{error}</pre>
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+          <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Validation Error</h4>
+          <pre className="text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap overflow-x-auto">{error}</pre>
         </div>
       )}
 
       {/* File Upload Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Load Project Data
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Upload JSON File
             </label>
             <input
@@ -425,7 +425,7 @@ const ProjectDashboard: React.FC = () => {
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {fileName && (
-              <p className="mt-2 text-sm text-gray-600">Loaded: {fileName}</p>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Loaded: {fileName}</p>
             )}
           </div>
           {projectData && (
@@ -442,15 +442,15 @@ const ProjectDashboard: React.FC = () => {
       </div>
 
       {/* JSON Editor */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Direct JSON Editor
         </h2>
         <textarea
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
           placeholder="Paste your project JSON here..."
-          className="w-full h-96 p-3 border border-gray-300 rounded-md text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full h-96 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <button
           onClick={parseJson}
@@ -465,27 +465,27 @@ const ProjectDashboard: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Project Dashboard
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             Load, edit, and manage your project data with enhanced file handling
           </p>
         </div>
 
         {/* Tab Navigation */}
         <div className="mb-6">
-          <div className="border-b border-gray-200">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab("metadata")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === "metadata"
                     ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
                 type="button"
               >
@@ -499,7 +499,7 @@ const ProjectDashboard: React.FC = () => {
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === "project"
                     ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                 } ${!projectData ? "opacity-50 cursor-not-allowed" : ""}`}
                 disabled={!projectData}
                 type="button"
@@ -521,13 +521,13 @@ const ProjectDashboard: React.FC = () => {
             {projectData && (
               <>
                 {/* Project Overview */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900">
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                         {projectData.project.name}
                       </h2>
-                      <p className="text-gray-600 mt-1">
+                      <p className="text-gray-600 dark:text-gray-300 mt-1">
                         {projectData.project.description}
                       </p>
                     </div>
@@ -545,19 +545,19 @@ const ProjectDashboard: React.FC = () => {
                       <div className="text-2xl font-bold text-blue-600">
                         {projectData.metadata?.totalWorkItems || 0}
                       </div>
-                      <div className="text-sm text-gray-500">Total Items</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Total Items</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
                         {projectData.metadata?.completedWorkItems || 0}
                       </div>
-                      <div className="text-sm text-gray-500">Completed</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Completed</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-orange-600">
                         {projectData.project.estimatedEffort?.value || 0}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         Est.{" "}
                         {projectData.project.estimatedEffort?.unit || "hours"}
                       </div>
@@ -570,17 +570,17 @@ const ProjectDashboard: React.FC = () => {
                       >
                         {projectData.project.priority?.toUpperCase() || "MED"}
                       </div>
-                      <div className="text-sm text-gray-500">Priority</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Priority</div>
                     </div>
                   </div>
 
                   {projectData.project.tags &&
                     projectData.project.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         {projectData.project.tags.map((tag, index) => (
                           <span
                             key={index}
-                            className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
+                            className="px-3 py-1 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
                           >
                             {tag}
                           </span>
@@ -591,14 +591,14 @@ const ProjectDashboard: React.FC = () => {
 
                 {/* Work Items */}
                 <div className="space-y-4">
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                     Work Items
                   </h2>
                   {workItemHierarchy.length > 0 ? (
                     workItemHierarchy.map((item) => renderWorkItem(item))
                   ) : (
-                    <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                      <p className="text-gray-500">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+                      <p className="text-gray-500 dark:text-gray-400">
                         No work items found in the project data.
                       </p>
                     </div>
