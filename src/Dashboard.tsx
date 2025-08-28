@@ -16,6 +16,11 @@ import {
   Download,
   Settings,
   Layout,
+  Edit3,
+  Save,
+  X,
+  Plus,
+  Minus,
 } from "lucide-react";
 import {
   ProjectDataSchema,
@@ -24,8 +29,275 @@ import {
   type StatusType,
   type PriorityType,
   type WorkItemType,
+  type WorkItem,
+  type EstimatedEffort,
 } from "./schemas";
 
+
+// Helper components
+const AddTagButton: React.FC<{ itemId: string; onAddTag: (itemId: string, tag: string) => void }> = ({ itemId, onAddTag }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [tagValue, setTagValue] = useState("");
+
+  const handleAdd = () => {
+    if (tagValue.trim()) {
+      onAddTag(itemId, tagValue.trim());
+      setTagValue("");
+      setIsAdding(false);
+    }
+  };
+
+  if (isAdding) {
+    return (
+      <div className="flex items-center space-x-1">
+        <input
+          type="text"
+          value={tagValue}
+          onChange={(e) => setTagValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAdd();
+            if (e.key === "Escape") setIsAdding(false);
+          }}
+          className="text-xs px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          placeholder="Add tag..."
+          autoFocus
+        />
+        <button
+          onClick={handleAdd}
+          className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+        >
+          <Plus className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setIsAdding(true)}
+      className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+    >
+      + Add tag
+    </button>
+  );
+};
+
+const AddAcceptanceCriteriaButton: React.FC<{ itemId: string; onAddCriteria: (itemId: string, description: string) => void }> = ({ itemId, onAddCriteria }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [criteriaValue, setCriteriaValue] = useState("");
+
+  const handleAdd = () => {
+    if (criteriaValue.trim()) {
+      onAddCriteria(itemId, criteriaValue.trim());
+      setCriteriaValue("");
+      setIsAdding(false);
+    }
+  };
+
+  if (isAdding) {
+    return (
+      <div className="mt-2 space-y-2">
+        <textarea
+          value={criteriaValue}
+          onChange={(e) => setCriteriaValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleAdd();
+            }
+            if (e.key === "Escape") setIsAdding(false);
+          }}
+          className="w-full text-xs p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+          placeholder="Add acceptance criteria..."
+          rows={2}
+          autoFocus
+        />
+        <div className="flex space-x-2">
+          <button
+            onClick={handleAdd}
+            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Add
+          </button>
+          <button
+            onClick={() => setIsAdding(false)}
+            className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setIsAdding(true)}
+      className="mt-2 text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+    >
+      + Add acceptance criteria
+    </button>
+  );
+};
+
+const EditWorkItemForm: React.FC<{ 
+  item: Partial<WorkItem>; 
+  onUpdate: (field: keyof WorkItem, value: WorkItem[keyof WorkItem]) => void;
+}> = ({ item, onUpdate }) => {
+  return (
+    <div className="space-y-3">
+      {/* Title */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Title
+        </label>
+        <input
+          type="text"
+          value={item.title || ""}
+          onChange={(e) => onUpdate("title", e.target.value)}
+          className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Description
+        </label>
+        <textarea
+          value={item.description || ""}
+          onChange={(e) => onUpdate("description", e.target.value)}
+          rows={3}
+          className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Status */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Status
+          </label>
+          <select
+            value={item.status || "backlog"}
+            onChange={(e) => onUpdate("status", e.target.value as StatusType)}
+            className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="backlog">Backlog</option>
+            <option value="todo">Todo</option>
+            <option value="in_progress">In Progress</option>
+            <option value="review">Review</option>
+            <option value="testing">Testing</option>
+            <option value="done">Done</option>
+            <option value="blocked">Blocked</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        {/* Priority */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Priority
+          </label>
+          <select
+            value={item.priority || "medium"}
+            onChange={(e) => onUpdate("priority", e.target.value as PriorityType)}
+            className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Type */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Type
+          </label>
+          <select
+            value={item.type || "task"}
+            onChange={(e) => onUpdate("type", e.target.value as WorkItemType)}
+            className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="epic">Epic</option>
+            <option value="feature">Feature</option>
+            <option value="story">Story</option>
+            <option value="task">Task</option>
+            <option value="bug">Bug</option>
+            <option value="spike">Spike</option>
+            <option value="research">Research</option>
+          </select>
+        </div>
+
+        {/* Assignee */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Assignee
+          </label>
+          <input
+            type="text"
+            value={item.assignee || ""}
+            onChange={(e) => onUpdate("assignee", e.target.value)}
+            className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+        </div>
+      </div>
+
+      {/* Estimated Effort */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Estimated Effort
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={item.estimatedEffort?.value || ""}
+            onChange={(e) => onUpdate("estimatedEffort", { 
+              ...item.estimatedEffort, 
+              value: parseFloat(e.target.value) || 0 
+            })}
+            placeholder="Value"
+            className="text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+          <select
+            value={item.estimatedEffort?.unit || "hours"}
+            onChange={(e) => onUpdate("estimatedEffort", { 
+              ...item.estimatedEffort, 
+              unit: e.target.value as EstimatedEffort["unit"]
+            })}
+            className="text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+            <option value="weeks">Weeks</option>
+            <option value="months">Months</option>
+            <option value="story_points">Story Points</option>
+            <option value="t_shirt_size">T-Shirt Size</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Due Date */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Due Date
+        </label>
+        <input
+          type="date"
+          value={item.dueDate ? item.dueDate.split("T")[0] : ""}
+          onChange={(e) => onUpdate("dueDate", e.target.value ? new Date(e.target.value).toISOString() : "")}
+          className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        />
+      </div>
+    </div>
+  );
+};
 
 const ProjectDashboard: React.FC = () => {
   const [jsonInput, setJsonInput] = useState<string>("");
@@ -34,6 +306,8 @@ const ProjectDashboard: React.FC = () => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"metadata" | "project">("metadata");
   const [fileName, setFileName] = useState<string>("");
+  const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
+  const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
 
   // Update JSON input whenever project data changes
   useEffect(() => {
@@ -168,6 +442,133 @@ const ProjectDashboard: React.FC = () => {
     });
   };
 
+  const toggleEditMode = (itemId: string): void => {
+    const newEditingItems = new Set(editingItems);
+    if (editingItems.has(itemId)) {
+      newEditingItems.delete(itemId);
+      const newFormData = { ...editFormData };
+      delete newFormData[itemId];
+      setEditFormData(newFormData);
+    } else {
+      newEditingItems.add(itemId);
+      const item = projectData?.workItems.find(w => w.id === itemId);
+      if (item) {
+        setEditFormData({
+          ...editFormData,
+          [itemId]: { ...item }
+        });
+      }
+    }
+    setEditingItems(newEditingItems);
+  };
+
+  const updateEditFormData = (itemId: string, field: keyof WorkItem, value: WorkItem[keyof WorkItem]): void => {
+    setEditFormData({
+      ...editFormData,
+      [itemId]: {
+        ...editFormData[itemId],
+        [field]: value
+      }
+    });
+  };
+
+  const saveWorkItem = (itemId: string): void => {
+    if (!projectData || !editFormData[itemId]) return;
+
+    const updatedWorkItems = projectData.workItems.map((item) => {
+      if (item.id === itemId) {
+        return { ...item, ...editFormData[itemId], updatedDate: new Date().toISOString() };
+      }
+      return item;
+    });
+
+    setProjectData({
+      ...projectData,
+      workItems: updatedWorkItems,
+    });
+
+    toggleEditMode(itemId);
+  };
+
+  const addTag = (itemId: string, tag: string): void => {
+    if (!projectData || !tag.trim()) return;
+
+    const updatedWorkItems = projectData.workItems.map((item) => {
+      if (item.id === itemId) {
+        const currentTags = item.tags || [];
+        if (!currentTags.includes(tag.trim())) {
+          return { ...item, tags: [...currentTags, tag.trim()], updatedDate: new Date().toISOString() };
+        }
+      }
+      return item;
+    });
+
+    setProjectData({
+      ...projectData,
+      workItems: updatedWorkItems,
+    });
+  };
+
+  const removeTag = (itemId: string, tagIndex: number): void => {
+    if (!projectData) return;
+
+    const updatedWorkItems = projectData.workItems.map((item) => {
+      if (item.id === itemId && item.tags) {
+        const updatedTags = item.tags.filter((_, index) => index !== tagIndex);
+        return { ...item, tags: updatedTags, updatedDate: new Date().toISOString() };
+      }
+      return item;
+    });
+
+    setProjectData({
+      ...projectData,
+      workItems: updatedWorkItems,
+    });
+  };
+
+  const addAcceptanceCriteria = (itemId: string, description: string): void => {
+    if (!projectData || !description.trim()) return;
+
+    const updatedWorkItems = projectData.workItems.map((item) => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        const newCriteria = {
+          id: `ac-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          description: description.trim(),
+          completed: false
+        };
+        return { 
+          ...item, 
+          acceptanceCriteria: [...currentCriteria, newCriteria],
+          updatedDate: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+
+    setProjectData({
+      ...projectData,
+      workItems: updatedWorkItems,
+    });
+  };
+
+  const removeAcceptanceCriteria = (itemId: string, criteriaIndex: number): void => {
+    if (!projectData) return;
+
+    const updatedWorkItems = projectData.workItems.map((item) => {
+      if (item.id === itemId && item.acceptanceCriteria) {
+        const updatedCriteria = item.acceptanceCriteria.filter((_, index) => index !== criteriaIndex);
+        return { ...item, acceptanceCriteria: updatedCriteria, updatedDate: new Date().toISOString() };
+      }
+      return item;
+    });
+
+    setProjectData({
+      ...projectData,
+      workItems: updatedWorkItems,
+    });
+  };
+
   const getStatusColor = (status: StatusType): string => {
     const colors: Record<StatusType, string> = {
       backlog: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
@@ -287,6 +688,13 @@ const ProjectDashboard: React.FC = () => {
               </div>
 
               <div className="flex-1 min-w-0">
+                {editingItems.has(item.id) ? (
+                  <EditWorkItemForm 
+                    item={editFormData[item.id] || item}
+                    onUpdate={(field, value) => updateEditFormData(item.id, field, value)}
+                  />
+                ) : (
+                  <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
                   {item.title}
                 </h3>
@@ -332,6 +740,33 @@ const ProjectDashboard: React.FC = () => {
                   )}
                 </div>
 
+
+                {item.tags && item.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {item.tags.map((tag, index) => (
+                      <div key={index} className="flex items-center space-x-1">
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs">
+                          {tag}
+                        </span>
+                        <button
+                          onClick={() => removeTag(item.id, index)}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          type="button"
+                          title="Remove tag"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <AddTagButton itemId={item.id} onAddTag={addTag} />
+                  </div>
+                )}
+                {(!item.tags || item.tags.length === 0) && (
+                  <div className="mt-3">
+                    <AddTagButton itemId={item.id} onAddTag={addTag} />
+                  </div>
+                )}
+
                 {item.acceptanceCriteria &&
                   item.acceptanceCriteria.length > 0 && (
                     <div className="mt-3">
@@ -365,25 +800,53 @@ const ProjectDashboard: React.FC = () => {
                             >
                               {ac.description}
                             </span>
+                            <button
+                              onClick={() => removeAcceptanceCriteria(item.id, index)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 ml-auto"
+                              type="button"
+                              title="Remove acceptance criteria"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
                           </div>
                         ))}
                       </div>
+                      <AddAcceptanceCriteriaButton itemId={item.id} onAddCriteria={addAcceptanceCriteria} />
                     </div>
                   )}
-
-                {item.tags && item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {item.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                {(!item.acceptanceCriteria || item.acceptanceCriteria.length === 0) && (
+                  <div className="mt-3">
+                    <AddAcceptanceCriteriaButton itemId={item.id} onAddCriteria={addAcceptanceCriteria} />
+                  </div>
+                )}
                   </div>
                 )}
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-2 ml-4">
+              <button
+                onClick={() => toggleEditMode(item.id)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+                type="button"
+                title={editingItems.has(item.id) ? "Cancel edit" : "Edit item"}
+              >
+                {editingItems.has(item.id) ? (
+                  <X className="w-4 h-4" />
+                ) : (
+                  <Edit3 className="w-4 h-4" />
+                )}
+              </button>
+              {editingItems.has(item.id) && (
+                <button
+                  onClick={() => saveWorkItem(item.id)}
+                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                  type="button"
+                  title="Save changes"
+                >
+                  <Save className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
