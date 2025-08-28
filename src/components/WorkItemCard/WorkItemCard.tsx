@@ -8,11 +8,14 @@ import {
   Calendar, 
   Clock, 
   User, 
-  Target 
+  Target,
+  Minus
 } from 'lucide-react';
 import { StatusBadge } from '../StatusBadge';
 import { TypeIcon } from '../TypeIcon';
 import { EditWorkItemForm } from '../EditWorkItemForm';
+import { AddTagButton } from '../AddTagButton';
+import { AddAcceptanceCriteriaButton } from '../AddAcceptanceCriteriaButton';
 import type { WorkItemCardProps } from './types';
 
 export default function WorkItemCard({
@@ -121,28 +124,68 @@ export default function WorkItemCard({
                   )}
                 </div>
 
-                {/* Tags - simplified for now */}
-                {item.tags && item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {item.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs"
-                      >
-                        {tag}
-                      </span>
+                {/* Tags with interactive management */}
+                <div className="mt-3">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {item.tags && item.tags.length > 0 && item.tags.map((tag, index) => (
+                      <div key={index} className="flex items-center space-x-1">
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs">
+                          {tag}
+                        </span>
+                        <button
+                          onClick={() => _onRemoveTag(index)}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          type="button"
+                          title="Remove tag"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
-                )}
+                  <AddTagButton onAddTag={_onAddTag} />
+                </div>
 
-                {/* Acceptance Criteria - simplified for now */}
-                {item.acceptanceCriteria && item.acceptanceCriteria.length > 0 && (
-                  <div className="mt-3">
-                    <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Acceptance Criteria ({item.acceptanceCriteria.filter(ac => ac.completed).length}/{item.acceptanceCriteria.length})
-                    </h4>
-                  </div>
-                )}
+                {/* Acceptance Criteria with interactive management */}
+                <div className="mt-3">
+                  {item.acceptanceCriteria && item.acceptanceCriteria.length > 0 && (
+                    <div className="mb-3">
+                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Acceptance Criteria ({item.acceptanceCriteria.filter(ac => ac.completed).length}/{item.acceptanceCriteria.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {item.acceptanceCriteria.map((ac, index) => (
+                          <div key={ac.id || index} className="flex items-start space-x-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={ac.completed || false}
+                              onChange={(e) => _onToggleAcceptanceCriteria(index, e.target.checked)}
+                              className="w-3 h-3 text-green-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-green-500 focus:ring-2 mt-0.5 flex-shrink-0"
+                            />
+                            <span
+                              className={
+                                ac.completed
+                                  ? "text-green-700 dark:text-green-400 italic line-through"
+                                  : "text-gray-600 dark:text-gray-300"
+                              }
+                            >
+                              {ac.description}
+                            </span>
+                            <button
+                              onClick={() => _onRemoveAcceptanceCriteria(index)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
+                              type="button"
+                              title="Remove acceptance criteria"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <AddAcceptanceCriteriaButton onAddCriteria={_onAddAcceptanceCriteria} />
+                </div>
               </div>
             )}
           </div>

@@ -1,13 +1,16 @@
 import { ProjectDashboard } from "./pages";
 import ErrorBoundary from "./ErrorBoundary";
 import { ProjectProvider } from "./context/ProjectContext";
+import { ProviderErrorBoundary } from "./components/ProviderErrorBoundary";
 
 export default function App() {
   return (
-    <ErrorBoundary>
+    <ProviderErrorBoundary>
       <ProjectProvider>
-        <ProjectDashboard />
+        <ErrorBoundary>
+          <ProjectDashboard />
+        </ErrorBoundary>
       </ProjectProvider>
-    </ErrorBoundary>
+    </ProviderErrorBoundary>
   );
 }

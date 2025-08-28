@@ -1,0 +1,1 @@
+export { default as ProviderErrorBoundary } from './ProviderErrorBoundary';

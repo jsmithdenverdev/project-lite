@@ -76,23 +76,19 @@ export default function ProjectDashboard() {
   };
 
   const handleAddTag = (itemId: string, tag: string): void => {
-    // TODO: Implement add tag logic
-    console.log('Add tag:', itemId, tag);
+    dispatch({ type: 'ADD_TAG', payload: { itemId, tag } });
   };
 
   const handleRemoveTag = (itemId: string, tagIndex: number): void => {
-    // TODO: Implement remove tag logic
-    console.log('Remove tag:', itemId, tagIndex);
+    dispatch({ type: 'REMOVE_TAG', payload: { itemId, tagIndex } });
   };
 
   const handleAddAcceptanceCriteria = (itemId: string, description: string): void => {
-    // TODO: Implement add acceptance criteria logic
-    console.log('Add acceptance criteria:', itemId, description);
+    dispatch({ type: 'ADD_ACCEPTANCE_CRITERIA', payload: { itemId, description } });
   };
 
   const handleRemoveAcceptanceCriteria = (itemId: string, criteriaIndex: number): void => {
-    // TODO: Implement remove acceptance criteria logic
-    console.log('Remove acceptance criteria:', itemId, criteriaIndex);
+    dispatch({ type: 'REMOVE_ACCEPTANCE_CRITERIA', payload: { itemId, criteriaIndex } });
   };
 
   const handleToggleAcceptanceCriteria = (itemId: string, criteriaIndex: number, completed: boolean): void => {
@@ -310,10 +306,7 @@ export default function ProjectDashboard() {
               <button
                 onClick={() => {
                   if (itemToDelete) {
-                    // TODO: Implement actual delete logic
-                    console.log('Delete item:', itemToDelete);
-                    dispatch({ type: 'SET_DELETE_ITEM', payload: null });
-                    dispatch({ type: 'TOGGLE_DELETE_CONFIRM' });
+                    dispatch({ type: 'DELETE_WORK_ITEM', payload: itemToDelete });
                   }
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"

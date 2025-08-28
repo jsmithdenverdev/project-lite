@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
 import type { ProjectData, WorkItem } from '../schemas';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useDebounce } from '../hooks/useDebounce';
 
 // State Interface
 export interface ProjectState {
@@ -42,6 +43,11 @@ export type ProjectAction =
   | { type: 'UPDATE_EDIT_FORM'; payload: { itemId: string; field: keyof WorkItem; value: any } }
   | { type: 'CLEAR_EDIT_FORM'; payload: string }
   | { type: 'SAVE_EDIT_ITEM'; payload: string }
+  | { type: 'ADD_TAG'; payload: { itemId: string; tag: string } }
+  | { type: 'REMOVE_TAG'; payload: { itemId: string; tagIndex: number } }
+  | { type: 'ADD_ACCEPTANCE_CRITERIA'; payload: { itemId: string; description: string } }
+  | { type: 'REMOVE_ACCEPTANCE_CRITERIA'; payload: { itemId: string; criteriaIndex: number } }
+  | { type: 'DELETE_WORK_ITEM'; payload: string }
   
   // Project editing actions
   | { type: 'SET_PROJECT_EDITING'; payload: boolean }
@@ -326,6 +332,157 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         showDeleteConfirm: !state.showDeleteConfirm,
       };
 
+    case 'ADD_TAG': {
+      const { itemId, tag } = action.payload;
+      if (!state.projectData || !tag.trim()) return state;
+
+      const updatedWorkItems = state.projectData.workItems.map(item => {
+        if (item.id === itemId) {
+          const currentTags = item.tags || [];
+          return {
+            ...item,
+            tags: [...currentTags, tag.trim()],
+            updatedDate: new Date().toISOString(),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...state,
+        projectData: {
+          ...state.projectData,
+          workItems: updatedWorkItems,
+          metadata: {
+            ...state.projectData.metadata,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+      };
+    }
+
+    case 'REMOVE_TAG': {
+      const { itemId, tagIndex } = action.payload;
+      if (!state.projectData) return state;
+
+      const updatedWorkItems = state.projectData.workItems.map(item => {
+        if (item.id === itemId && item.tags) {
+          const updatedTags = item.tags.filter((_, index) => index !== tagIndex);
+          return {
+            ...item,
+            tags: updatedTags,
+            updatedDate: new Date().toISOString(),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...state,
+        projectData: {
+          ...state.projectData,
+          workItems: updatedWorkItems,
+          metadata: {
+            ...state.projectData.metadata,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+      };
+    }
+
+    case 'ADD_ACCEPTANCE_CRITERIA': {
+      const { itemId, description } = action.payload;
+      if (!state.projectData || !description.trim()) return state;
+
+      const updatedWorkItems = state.projectData.workItems.map(item => {
+        if (item.id === itemId) {
+          const currentCriteria = item.acceptanceCriteria || [];
+          const newCriteria = {
+            id: `ac-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+            description: description.trim(),
+            completed: false,
+          };
+          return {
+            ...item,
+            acceptanceCriteria: [...currentCriteria, newCriteria],
+            updatedDate: new Date().toISOString(),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...state,
+        projectData: {
+          ...state.projectData,
+          workItems: updatedWorkItems,
+          metadata: {
+            ...state.projectData.metadata,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+      };
+    }
+
+    case 'REMOVE_ACCEPTANCE_CRITERIA': {
+      const { itemId, criteriaIndex } = action.payload;
+      if (!state.projectData) return state;
+
+      const updatedWorkItems = state.projectData.workItems.map(item => {
+        if (item.id === itemId && item.acceptanceCriteria) {
+          const updatedCriteria = item.acceptanceCriteria.filter((_, index) => index !== criteriaIndex);
+          return {
+            ...item,
+            acceptanceCriteria: updatedCriteria,
+            updatedDate: new Date().toISOString(),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...state,
+        projectData: {
+          ...state.projectData,
+          workItems: updatedWorkItems,
+          metadata: {
+            ...state.projectData.metadata,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+      };
+    }
+
+    case 'DELETE_WORK_ITEM': {
+      const itemId = action.payload;
+      if (!state.projectData) return state;
+
+      // Remove the item and any children that have this item as parent
+      const updatedWorkItems = state.projectData.workItems.filter(item => {
+        return item.id !== itemId && item.parentId !== itemId;
+      });
+
+      return {
+        ...state,
+        projectData: {
+          ...state.projectData,
+          workItems: updatedWorkItems,
+          metadata: {
+            ...state.projectData.metadata,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+        // Clean up any UI state for deleted items
+        editingItems: new Set(Array.from(state.editingItems).filter(id => id !== itemId)),
+        editFormData: Object.fromEntries(
+          Object.entries(state.editFormData).filter(([key]) => key !== itemId)
+        ),
+        expandedItems: new Set(Array.from(state.expandedItems).filter(id => id !== itemId)),
+        itemToDelete: null,
+        showDeleteConfirm: false,
+      };
+    }
+
     default:
       return state;
   }
@@ -355,12 +512,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [loadFromStorage]);
 
-  // Auto-save to localStorage whenever project data changes
-  useEffect(() => {
-    if (state.projectData && state.fileName) {
-      saveToStorage(state.projectData, state.fileName);
-    }
-  }, [state.projectData, state.fileName, saveToStorage]);
+  // Auto-save to localStorage with debouncing (500ms delay)
+  useDebounce(
+    () => {
+      if (state.projectData && state.fileName) {
+        saveToStorage(state.projectData, state.fileName);
+      }
+    },
+    500, // 500ms delay
+    [state.projectData, state.fileName, saveToStorage]
+  );
 
   return (
     <ProjectContext.Provider value={{ state, dispatch }}>
