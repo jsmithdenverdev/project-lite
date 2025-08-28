@@ -140,10 +140,50 @@ const AddAcceptanceCriteriaButton: React.FC<{ itemId: string; onAddCriteria: (it
   );
 };
 
+// Helper function to get all descendant IDs to prevent circular dependencies
+const getDescendantIds = (itemId: string, workItems: WorkItem[]): Set<string> => {
+  const descendants = new Set<string>();
+  const children = workItems.filter(wi => wi.parentId === itemId);
+  
+  children.forEach(child => {
+    descendants.add(child.id);
+    const grandChildren = getDescendantIds(child.id, workItems);
+    grandChildren.forEach(gc => descendants.add(gc));
+  });
+  
+  return descendants;
+};
+
 const EditWorkItemForm: React.FC<{ 
   item: Partial<WorkItem>; 
   onUpdate: (field: keyof WorkItem, value: WorkItem[keyof WorkItem]) => void;
-}> = ({ item, onUpdate }) => {
+  availableParents?: WorkItem[];
+}> = ({ item, onUpdate, availableParents = [] }) => {
+  // Filter out the item itself and all its descendants to prevent circular dependencies
+  const validParents = availableParents.filter(parent => {
+    if (parent.id === item.id) return false; // Can't be parent of itself
+    if (!item.id) return true; // New items can have any parent
+    
+    const descendants = getDescendantIds(item.id, availableParents);
+    return !descendants.has(parent.id); // Can't be parent of its own ancestor
+  });
+
+  // Sort parents by type hierarchy (epics first, then features, etc.)
+  const typeOrder: Record<WorkItemType, number> = {
+    epic: 1,
+    feature: 2,
+    story: 3,
+    task: 4,
+    bug: 4,
+    spike: 4,
+    research: 4
+  };
+
+  const sortedParents = validParents.sort((a, b) => {
+    const typeComparison = (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5);
+    if (typeComparison !== 0) return typeComparison;
+    return a.title.localeCompare(b.title);
+  });
   return (
     <div className="space-y-3">
       {/* Title */}
@@ -247,6 +287,25 @@ const EditWorkItemForm: React.FC<{
         </div>
       </div>
 
+      {/* Parent ID */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Parent Item
+        </label>
+        <select
+          value={item.parentId || ""}
+          onChange={(e) => onUpdate("parentId", e.target.value || undefined)}
+          className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        >
+          <option value="">No Parent (Root Level)</option>
+          {sortedParents.map(parent => (
+            <option key={parent.id} value={parent.id}>
+              [{parent.type.toUpperCase()}] {parent.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Estimated Effort */}
       <div>
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -308,6 +367,8 @@ const ProjectDashboard: React.FC = () => {
   const [fileName, setFileName] = useState<string>("");
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
   const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
+  const [isCreatingNewItem, setIsCreatingNewItem] = useState<boolean>(false);
+  const [newItemData, setNewItemData] = useState<Partial<WorkItem>>({});
 
   // Update JSON input whenever project data changes
   useEffect(() => {
@@ -569,6 +630,69 @@ const ProjectDashboard: React.FC = () => {
     });
   };
 
+  const startCreateNewItem = (): void => {
+    setNewItemData({
+      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: "",
+      description: "",
+      type: "task",
+      status: "backlog",
+      priority: "medium",
+      createdDate: new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+    });
+    setIsCreatingNewItem(true);
+  };
+
+  const cancelCreateNewItem = (): void => {
+    setNewItemData({});
+    setIsCreatingNewItem(false);
+  };
+
+  const saveNewItem = (): void => {
+    if (!projectData || !newItemData.title?.trim() || !newItemData.id) return;
+
+    const newItem: WorkItem = {
+      id: newItemData.id,
+      title: newItemData.title.trim(),
+      description: newItemData.description || "",
+      type: newItemData.type || "task",
+      status: newItemData.status || "backlog",
+      priority: newItemData.priority || "medium",
+      parentId: newItemData.parentId,
+      estimatedEffort: newItemData.estimatedEffort,
+      assignee: newItemData.assignee,
+      reporter: newItemData.reporter,
+      createdDate: newItemData.createdDate || new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+      startDate: newItemData.startDate,
+      dueDate: newItemData.dueDate,
+      tags: newItemData.tags || [],
+      acceptanceCriteria: newItemData.acceptanceCriteria || [],
+      dependencies: newItemData.dependencies,
+      customFields: newItemData.customFields,
+    };
+
+    setProjectData({
+      ...projectData,
+      workItems: [...projectData.workItems, newItem],
+      metadata: {
+        ...projectData.metadata,
+        totalWorkItems: (projectData.metadata?.totalWorkItems || 0) + 1,
+        lastUpdated: new Date().toISOString(),
+      }
+    });
+
+    cancelCreateNewItem();
+  };
+
+  const updateNewItemData = (field: keyof WorkItem, value: WorkItem[keyof WorkItem]): void => {
+    setNewItemData({
+      ...newItemData,
+      [field]: value
+    });
+  };
+
   const getStatusColor = (status: StatusType): string => {
     const colors: Record<StatusType, string> = {
       backlog: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
@@ -692,6 +816,7 @@ const ProjectDashboard: React.FC = () => {
                   <EditWorkItemForm 
                     item={editFormData[item.id] || item}
                     onUpdate={(field, value) => updateEditFormData(item.id, field, value)}
+                    availableParents={projectData?.workItems || []}
                   />
                 ) : (
                   <div>
@@ -1054,9 +1179,56 @@ const ProjectDashboard: React.FC = () => {
 
                 {/* Work Items */}
                 <div className="space-y-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    Work Items
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                      Work Items
+                    </h2>
+                    <button
+                      onClick={startCreateNewItem}
+                      className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+                      type="button"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Work Item</span>
+                    </button>
+                  </div>
+
+                  {/* New Work Item Form */}
+                  {isCreatingNewItem && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          Create New Work Item
+                        </h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={saveNewItem}
+                            disabled={!newItemData.title?.trim()}
+                            className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            type="button"
+                            title="Save new item"
+                          >
+                            <Save className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={cancelCreateNewItem}
+                            className="p-1 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+                            type="button"
+                            title="Cancel"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <EditWorkItemForm
+                        item={newItemData}
+                        onUpdate={updateNewItemData}
+                        availableParents={projectData?.workItems || []}
+                      />
+                    </div>
+                  )}
+
+                  {/* Work Items List */}
                   {workItemHierarchy.length > 0 ? (
                     workItemHierarchy.map((item) => renderWorkItem(item))
                   ) : (
@@ -1064,6 +1236,16 @@ const ProjectDashboard: React.FC = () => {
                       <p className="text-gray-500 dark:text-gray-400">
                         No work items found in the project data.
                       </p>
+                      {!isCreatingNewItem && (
+                        <button
+                          onClick={startCreateNewItem}
+                          className="mt-4 flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200 mx-auto"
+                          type="button"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add Your First Work Item</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
