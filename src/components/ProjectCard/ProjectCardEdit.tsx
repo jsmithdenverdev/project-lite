@@ -30,7 +30,7 @@ export default function ProjectCardEdit({ editData, onUpdateField }: ProjectCard
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Status */}
         <div>
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -94,14 +94,15 @@ export default function ProjectCardEdit({ editData, onUpdateField }: ProjectCard
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
           Estimated Effort
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input
             type="number"
             min="0"
             step="0.5"
             value={editData.estimatedEffort?.value || ""}
             onChange={(e) => onUpdateField("estimatedEffort", {
-              ...editData.estimatedEffort,
+              unit: "hours", // Default unit
+              ...editData.estimatedEffort, // Preserve existing unit if available
               value: parseFloat(e.target.value) || 0
             })}
             placeholder="Value"
@@ -110,7 +111,8 @@ export default function ProjectCardEdit({ editData, onUpdateField }: ProjectCard
           <select
             value={editData.estimatedEffort?.unit || "hours"}
             onChange={(e) => onUpdateField("estimatedEffort", {
-              ...editData.estimatedEffort,
+              value: 0, // Default value
+              ...editData.estimatedEffort, // Preserve existing value if available
               unit: e.target.value as EstimatedEffort["unit"]
             })}
             className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"

@@ -196,7 +196,44 @@ export default function ProjectDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        {/* Mobile Header */}
+        <div className="md:hidden mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2 mb-2">
+            <span>Project Pulse</span>
+            {hasUnsavedChanges && (
+              <span className="text-orange-500 text-lg" title="You have unsaved changes">
+                ●
+              </span>
+            )}
+          </h1>
+          {fileName && (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {fileName}
+              {hasUnsavedChanges && (
+                <span className="text-orange-500 ml-2">• Unsaved changes</span>
+              )}
+            </p>
+          )}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              type="button"
+            >
+              Load Project
+            </button>
+            <button
+              onClick={handleUnload}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              type="button"
+            >
+              Save & Unload Project
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:flex md:justify-between md:items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
               <span>Project Pulse</span>
