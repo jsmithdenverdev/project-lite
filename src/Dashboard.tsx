@@ -21,6 +21,7 @@ import {
   X,
   Plus,
   Minus,
+  Trash2,
 } from "lucide-react";
 import {
   ProjectDataSchema,
@@ -33,6 +34,53 @@ import {
   type EstimatedEffort,
 } from "./schemas";
 
+// localStorage utilities
+const STORAGE_KEYS = {
+  PROJECT_DATA: 'project-pulse-data',
+  PROJECT_FILENAME: 'project-pulse-filename',
+} as const;
+
+const saveToLocalStorage = (data: ProjectData, filename: string): void => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PROJECT_DATA, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEYS.PROJECT_FILENAME, filename);
+  } catch (error) {
+    console.warn('Failed to save to localStorage:', error);
+  }
+};
+
+const loadFromLocalStorage = (): { data: ProjectData | null; filename: string } => {
+  try {
+    const dataStr = localStorage.getItem(STORAGE_KEYS.PROJECT_DATA);
+    const filename = localStorage.getItem(STORAGE_KEYS.PROJECT_FILENAME) || '';
+    
+    if (dataStr) {
+      const data = JSON.parse(dataStr);
+      // Validate the data structure
+      const validationResult = ProjectDataSchema.safeParse(data);
+      if (validationResult.success) {
+        return { data: validationResult.data, filename };
+      } else {
+        console.warn('Invalid cached data, clearing localStorage');
+        clearLocalStorage();
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load from localStorage:', error);
+    clearLocalStorage();
+  }
+  
+  return { data: null, filename: '' };
+};
+
+const clearLocalStorage = (): void => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.PROJECT_DATA);
+    localStorage.removeItem(STORAGE_KEYS.PROJECT_FILENAME);
+  } catch (error) {
+    console.warn('Failed to clear localStorage:', error);
+  }
+};
 
 // Helper components
 const AddTagButton: React.FC<{ itemId: string; onAddTag: (itemId: string, tag: string) => void }> = ({ itemId, onAddTag }) => {
@@ -369,6 +417,28 @@ const ProjectDashboard: React.FC = () => {
   const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
   const [isCreatingNewItem, setIsCreatingNewItem] = useState<boolean>(false);
   const [newItemData, setNewItemData] = useState<Partial<WorkItem>>({});
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [isLoadedFromCache, setIsLoadedFromCache] = useState<boolean>(false);
+
+  // Load cached data on mount
+  useEffect(() => {
+    const { data, filename } = loadFromLocalStorage();
+    if (data) {
+      setProjectData(data);
+      setFileName(filename);
+      setJsonInput(JSON.stringify(data, null, 2));
+      setIsLoadedFromCache(true);
+      // Auto-expand epics on load
+      const epics = data.workItems
+        ?.filter((item) => item.type === "epic")
+        .map((item) => item.id) || [];
+      setExpandedItems(new Set(epics));
+      
+      // Show cache notification briefly
+      setTimeout(() => setIsLoadedFromCache(false), 3000);
+    }
+  }, []);
 
   // Update JSON input whenever project data changes
   useEffect(() => {
@@ -376,6 +446,13 @@ const ProjectDashboard: React.FC = () => {
       setJsonInput(JSON.stringify(projectData, null, 2));
     }
   }, [projectData]);
+
+  // Auto-save to localStorage whenever project data changes
+  useEffect(() => {
+    if (projectData) {
+      saveToLocalStorage(projectData, fileName);
+    }
+  }, [projectData, fileName]);
 
   const parseJson = (): void => {
     try {
@@ -459,12 +536,19 @@ const ProjectDashboard: React.FC = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
+      // Clear localStorage to allow loading different project
+      clearLocalStorage();
+      
       // Then clear the application state
       setProjectData(null);
       setJsonInput("");
       setFileName("");
       setError("");
       setExpandedItems(new Set());
+      setEditingItems(new Set());
+      setEditFormData({});
+      setIsCreatingNewItem(false);
+      setNewItemData({});
     }
   };
 
@@ -594,7 +678,7 @@ const ProjectDashboard: React.FC = () => {
       if (item.id === itemId) {
         const currentCriteria = item.acceptanceCriteria || [];
         const newCriteria = {
-          id: `ac-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `ac-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           description: description.trim(),
           completed: false
         };
@@ -632,7 +716,7 @@ const ProjectDashboard: React.FC = () => {
 
   const startCreateNewItem = (): void => {
     setNewItemData({
-      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       title: "",
       description: "",
       type: "task",
@@ -691,6 +775,64 @@ const ProjectDashboard: React.FC = () => {
       ...newItemData,
       [field]: value
     });
+  };
+
+  const confirmDeleteItem = (itemId: string): void => {
+    setItemToDelete(itemId);
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = (): void => {
+    setItemToDelete(null);
+    setShowDeleteConfirm(false);
+  };
+
+  const deleteWorkItem = (): void => {
+    if (!projectData || !itemToDelete) return;
+
+    // Find all descendants of the item to delete
+    const allDescendants = getDescendantIds(itemToDelete, projectData.workItems);
+    
+    // Remove the item and all its descendants
+    const itemsToRemove = new Set([itemToDelete, ...Array.from(allDescendants)]);
+    const updatedWorkItems = projectData.workItems.filter(item => !itemsToRemove.has(item.id));
+
+    // Exit edit mode for any deleted items
+    const newEditingItems = new Set(editingItems);
+    itemsToRemove.forEach(id => newEditingItems.delete(id));
+    setEditingItems(newEditingItems);
+
+    // Clear edit form data for deleted items
+    const newEditFormData = { ...editFormData };
+    itemsToRemove.forEach(id => delete newEditFormData[id]);
+    setEditFormData(newEditFormData);
+
+    // Update project data
+    setProjectData({
+      ...projectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...projectData.metadata,
+        totalWorkItems: updatedWorkItems.length,
+        lastUpdated: new Date().toISOString(),
+      }
+    });
+
+    cancelDelete();
+  };
+
+  const clearCacheAndReset = (): void => {
+    clearLocalStorage();
+    setProjectData(null);
+    setJsonInput("");
+    setFileName("");
+    setError("");
+    setExpandedItems(new Set());
+    setEditingItems(new Set());
+    setEditFormData({});
+    setIsCreatingNewItem(false);
+    setNewItemData({});
+    setActiveTab("metadata");
   };
 
   const getStatusColor = (status: StatusType): string => {
@@ -963,14 +1105,24 @@ const ProjectDashboard: React.FC = () => {
                 )}
               </button>
               {editingItems.has(item.id) && (
-                <button
-                  onClick={() => saveWorkItem(item.id)}
-                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
-                  type="button"
-                  title="Save changes"
-                >
-                  <Save className="w-4 h-4" />
-                </button>
+                <>
+                  <button
+                    onClick={() => confirmDeleteItem(item.id)}
+                    className="p-1 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+                    type="button"
+                    title="Delete item"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => saveWorkItem(item.id)}
+                    className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                    type="button"
+                    title="Save changes"
+                  >
+                    <Save className="w-4 h-4" />
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -988,6 +1140,16 @@ const ProjectDashboard: React.FC = () => {
 
   const renderMetadataTab = (): JSX.Element => (
     <div className="space-y-6">
+      {/* Cache Loaded Notification */}
+      {isLoadedFromCache && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+          <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Project Restored from Cache</h4>
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Your previous project data has been automatically restored. Changes are automatically saved to your browser.
+          </p>
+        </div>
+      )}
+
       {/* Validation Error Display */}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
@@ -1016,16 +1178,28 @@ const ProjectDashboard: React.FC = () => {
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Loaded: {fileName}</p>
             )}
           </div>
-          {projectData && (
-            <button
-              onClick={handleUnload}
-              type="button"
-              className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
-            >
-              <Download className="w-4 h-4" />
-              <span>Save & Unload Project</span>
-            </button>
-          )}
+          <div className="flex flex-wrap gap-3">
+            {projectData && (
+              <button
+                onClick={handleUnload}
+                type="button"
+                className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+              >
+                <Download className="w-4 h-4" />
+                <span>Save & Unload Project</span>
+              </button>
+            )}
+            {(projectData || localStorage.getItem(STORAGE_KEYS.PROJECT_DATA)) && (
+              <button
+                onClick={clearCacheAndReset}
+                type="button"
+                className="flex items-center space-x-2 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200"
+              >
+                <X className="w-4 h-4" />
+                <span>Clear Cache & Start Fresh</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1251,6 +1425,58 @@ const ProjectDashboard: React.FC = () => {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && itemToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Confirm Delete
+              </h3>
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                  Are you sure you want to delete this work item?
+                </p>
+                {(() => {
+                  const itemData = projectData?.workItems.find(item => item.id === itemToDelete);
+                  const descendants = itemToDelete ? getDescendantIds(itemToDelete, projectData?.workItems || []) : new Set();
+                  
+                  return (
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 mb-3">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        [{itemData?.type?.toUpperCase()}] {itemData?.title}
+                      </p>
+                      {descendants.size > 0 && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+                          ⚠️ This will also delete {descendants.size} child item{descendants.size !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={deleteWorkItem}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  type="button"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
