@@ -16,7 +16,62 @@ export default function ProjectCard({
 }: ProjectCardProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-      <div className="flex items-start justify-between mb-4">
+      {/* Mobile Layout */}
+      <div className="md:hidden">
+        {/* Mobile header with actions */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            {!isEditing && <StatusBadge status={project.status} />}
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={isEditing ? onCancel : onEdit}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+              type="button"
+              title={isEditing ? "Cancel edit" : "Edit project"}
+            >
+              {isEditing ? (
+                <X className="w-4 h-4" />
+              ) : (
+                <Edit3 className="w-4 h-4" />
+              )}
+            </button>
+            
+            {isEditing && (
+              <button
+                onClick={onSave}
+                className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                type="button"
+                title="Save changes"
+              >
+                <Save className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile content */}
+        <div className="mb-4">
+          {isEditing ? (
+            <ProjectCardEdit 
+              editData={editData} 
+              onUpdateField={onUpdateField} 
+            />
+          ) : (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                {project.name}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">
+                {project.description}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:flex md:items-start md:justify-between mb-4">
         {isEditing ? (
           <ProjectCardEdit 
             editData={editData} 

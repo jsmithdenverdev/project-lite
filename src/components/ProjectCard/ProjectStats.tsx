@@ -8,7 +8,7 @@ export default function ProjectStats({
   priority 
 }: ProjectStatsProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6">
       <div className="text-center">
         <div className="text-2xl font-bold text-blue-600">
           {totalItems}
