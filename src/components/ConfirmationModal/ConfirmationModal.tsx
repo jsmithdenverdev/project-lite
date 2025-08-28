@@ -34,9 +34,9 @@ export default function ConfirmationModal({
         <div className="flex items-start space-x-3">
           <div className="text-2xl">{styles.icon}</div>
           <div className="flex-1">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {message}
-            </p>
+            </div>
           </div>
         </div>
         

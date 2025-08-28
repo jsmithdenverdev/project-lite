@@ -1,15 +1,28 @@
+import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import ProjectImportModal from '../components/ProjectImportModal';
 import { ProjectCard } from '../components/ProjectCard';
 import { WorkItemHierarchy } from '../components/WorkItemHierarchy';
 import { CreateWorkItemForm } from '../components/CreateWorkItemForm';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { ProjectSelector } from '../components/ProjectSelector';
+import { NewProjectModal } from '../components/NewProjectModal';
 import { useProjectContext } from '../context/ProjectContext';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useCurrentProject } from '../hooks/useCurrentProject';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 export default function ProjectDashboard() {
   const { state, dispatch } = useProjectContext();
+  const { 
+    projects, 
+    activeProjectId, 
+    isLoading: multiProjectLoading,
+    saveToMultiProject,
+    createAndLoadProject
+  } = useCurrentProject();
+  
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const {
     projectData,
     fileName,
@@ -26,43 +39,40 @@ export default function ProjectDashboard() {
     editProjectData,
   } = state;
 
-  const { clearStorage } = useLocalStorage();
   const { hasUnsavedChanges, executeWithConfirmation, confirmAction, cancelAction, showConfirmation } = useUnsavedChanges();
+  
+  // Auto-save project data to IndexedDB when it changes
+  useEffect(() => {
+    if (projectData && activeProjectId && hasUnsavedChanges) {
+      const saveTimeout = setTimeout(async () => {
+        try {
+          await saveToMultiProject(projectData);
+        } catch (error) {
+          console.error('Failed to auto-save project:', error);
+        }
+      }, 1000); // Debounce saves by 1 second
+
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [projectData, activeProjectId, hasUnsavedChanges, saveToMultiProject]);
   
 
   const handleProjectLoaded = (data: import('../schemas').ProjectData, filename: string): void => {
-    const loadProject = () => {
-      dispatch({ type: 'SET_PROJECT_DATA', payload: { data, fileName: filename } });
+    const loadProject = async () => {
+      // For multi-project context, we want to create a new project and switch to it
+      try {
+        await createAndLoadProject(data, filename);
+        dispatch({ type: 'TOGGLE_IMPORT_MODAL' });
+      } catch (error) {
+        console.error('Failed to load project:', error);
+        // Fallback to old behavior
+        dispatch({ type: 'SET_PROJECT_DATA', payload: { data, fileName: filename } });
+      }
     };
     
     executeWithConfirmation(loadProject);
   };
 
-  const handleUnload = (): void => {
-    if (projectData) {
-      const unloadProject = () => {
-        // Download the file first
-        const dataStr = JSON.stringify(projectData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName || "project-data.json";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        // Clear localStorage to allow loading different project
-        clearStorage();
-        
-        // Reset state and show import modal
-        dispatch({ type: 'CLEAR_PROJECT_DATA' });
-      };
-
-      executeWithConfirmation(unloadProject);
-    }
-  };
 
   const handleToggleExpanded = (itemId: string): void => {
     dispatch({ type: 'TOGGLE_EXPANDED', payload: itemId });
@@ -142,13 +152,13 @@ export default function ProjectDashboard() {
     dispatch({ type: 'UPDATE_NEW_ITEM', payload: { field, value } });
   };
 
-  if (!projectData) {
+  if (!projectData && !multiProjectLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <Modal
           isOpen={showImportModal}
           onClose={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-          title="Welcome to Project Pulse"
+          title="Import Project"
           size="lg"
         >
           <ProjectImportModal 
@@ -157,18 +167,57 @@ export default function ProjectDashboard() {
             onClose={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
           />
         </Modal>
+        
+        <NewProjectModal
+          isOpen={showNewProjectModal}
+          onClose={() => setShowNewProjectModal(false)}
+          onProjectCreated={() => {
+            setShowNewProjectModal(false);
+          }}
+        />
+        
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Project Pulse</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">Load a project to get started</p>
-            {!showImportModal && (
-              <button
-                onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                type="button"
-              >
-                Load Project
-              </button>
+          <div className="text-center max-w-md mx-auto px-4">
+            <h1 className="text-3xl font-bold mb-4">Welcome to Project Pulse</h1>
+            
+            {projects.length === 0 ? (
+              <>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                  Get started by creating your first project or importing an existing one.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => setShowNewProjectModal(true)}
+                    className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    type="button"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span>Create New Project</span>
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
+                    className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    type="button"
+                  >
+                    Import Project
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                  Select a project from the header to continue, or create a new one.
+                </p>
+                <ProjectSelector className="mx-auto mb-4 max-w-xs" />
+                <button
+                  onClick={() => setShowNewProjectModal(true)}
+                  className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mx-auto"
+                  type="button"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Create New Project</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -198,43 +247,7 @@ export default function ProjectDashboard() {
         {/* Header */}
         {/* Mobile Header */}
         <div className="md:hidden mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2 mb-2">
-            <span>Project Pulse</span>
-            {hasUnsavedChanges && (
-              <span className="text-orange-500 text-lg" title="You have unsaved changes">
-                ●
-              </span>
-            )}
-          </h1>
-          {fileName && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              {fileName}
-              {hasUnsavedChanges && (
-                <span className="text-orange-500 ml-2">• Unsaved changes</span>
-              )}
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              type="button"
-            >
-              Load Project
-            </button>
-            <button
-              onClick={handleUnload}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              type="button"
-            >
-              Save & Unload Project
-            </button>
-          </div>
-        </div>
-
-        {/* Desktop Header */}
-        <div className="hidden md:flex md:justify-between md:items-center mb-6">
-          <div>
+          <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
               <span>Project Pulse</span>
               {hasUnsavedChanges && (
@@ -243,52 +256,92 @@ export default function ProjectDashboard() {
                 </span>
               )}
             </h1>
-            {fileName && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {fileName}
-                {hasUnsavedChanges && (
-                  <span className="text-orange-500 ml-2">• Unsaved changes</span>
-                )}
-              </p>
+          </div>
+          
+          <div className="flex flex-col space-y-3">
+            <div className="flex items-center space-x-2">
+              <ProjectSelector className="flex-1" />
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                type="button"
+                title="New Project"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {!activeProjectId && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  type="button"
+                >
+                  Import Project
+                </button>
+              </div>
             )}
           </div>
-          <div className="flex gap-2">
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:flex md:justify-between md:items-center mb-6">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <span>Project Pulse</span>
+              {hasUnsavedChanges && (
+                <span className="text-orange-500 text-lg" title="You have unsaved changes">
+                  ●
+                </span>
+              )}
+            </h1>
+            <ProjectSelector />
+          </div>
+          
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={() => setShowNewProjectModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               type="button"
             >
-              Load Project
+              <Plus className="w-4 h-4" />
+              <span>New Project</span>
             </button>
-            <button
-              onClick={handleUnload}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              type="button"
-            >
-              Save & Unload Project
-            </button>
+            
+            {!activeProjectId && (
+              <button
+                onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                type="button"
+              >
+                Import Project
+              </button>
+            )}
           </div>
         </div>
 
         {/* Project Metadata */}
-        <div className="mb-6">
-          <ProjectCard
-            project={projectData.project}
-            metadata={{
-              ...projectData.metadata,
-              totalWorkItems: projectData.workItems.length,
-              completedWorkItems: projectData.workItems.filter(item => item.status === 'done').length,
-            }}
-            isEditing={isEditingProject}
-            editData={editProjectData}
-            onEdit={() => dispatch({ type: 'SET_PROJECT_EDITING', payload: true })}
-            onSave={() => {
-              dispatch({ type: 'SAVE_PROJECT_CHANGES' });
-            }}
-            onCancel={() => dispatch({ type: 'SET_PROJECT_EDITING', payload: false })}
-            onUpdateField={(field, value) => dispatch({ type: 'UPDATE_PROJECT_EDIT', payload: { field, value } })}
-          />
-        </div>
+        {projectData && (
+          <div className="mb-6">
+            <ProjectCard
+              project={projectData.project}
+              metadata={{
+                ...projectData.metadata,
+                totalWorkItems: projectData.workItems.length,
+                completedWorkItems: projectData.workItems.filter(item => item.status === 'done').length,
+              }}
+              isEditing={isEditingProject}
+              editData={editProjectData}
+              onEdit={() => dispatch({ type: 'SET_PROJECT_EDITING', payload: true })}
+              onSave={() => {
+                dispatch({ type: 'SAVE_PROJECT_CHANGES' });
+              }}
+              onCancel={() => dispatch({ type: 'SET_PROJECT_EDITING', payload: false })}
+              onUpdateField={(field, value) => dispatch({ type: 'UPDATE_PROJECT_EDIT', payload: { field, value } })}
+            />
+          </div>
+        )}
 
         {/* Work Items Section */}
         <div className="space-y-6">
@@ -307,7 +360,7 @@ export default function ProjectDashboard() {
           </div>
 
           {/* Create New Item Form */}
-          {isCreatingNewItem && (
+          {isCreatingNewItem && projectData && (
             <CreateWorkItemForm
               newItemData={newItemData}
               availableParents={projectData.workItems || []}
@@ -318,22 +371,24 @@ export default function ProjectDashboard() {
           )}
 
           {/* Work Items Hierarchy */}
-          <WorkItemHierarchy
-            workItems={projectData.workItems || []}
-            expandedItems={expandedItems}
-            editingItems={editingItems}
-            editFormData={editFormData}
-            onToggleExpanded={handleToggleExpanded}
-            onToggleEdit={handleToggleEdit}
-            onSaveItem={handleSaveItem}
-            onDeleteItem={handleDeleteItem}
-            onUpdateField={handleUpdateField}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
-            onAddAcceptanceCriteria={handleAddAcceptanceCriteria}
-            onRemoveAcceptanceCriteria={handleRemoveAcceptanceCriteria}
-            onToggleAcceptanceCriteria={handleToggleAcceptanceCriteria}
-          />
+          {projectData && (
+            <WorkItemHierarchy
+              workItems={projectData.workItems || []}
+              expandedItems={expandedItems}
+              editingItems={editingItems}
+              editFormData={editFormData}
+              onToggleExpanded={handleToggleExpanded}
+              onToggleEdit={handleToggleEdit}
+              onSaveItem={handleSaveItem}
+              onDeleteItem={handleDeleteItem}
+              onUpdateField={handleUpdateField}
+              onAddTag={handleAddTag}
+              onRemoveTag={handleRemoveTag}
+              onAddAcceptanceCriteria={handleAddAcceptanceCriteria}
+              onRemoveAcceptanceCriteria={handleRemoveAcceptanceCriteria}
+              onToggleAcceptanceCriteria={handleToggleAcceptanceCriteria}
+            />
+          )}
         </div>
 
         {/* Modals */}
@@ -393,6 +448,15 @@ export default function ProjectDashboard() {
           confirmText="Continue"
           cancelText="Cancel"
           variant="warning"
+        />
+
+        {/* New Project Modal */}
+        <NewProjectModal
+          isOpen={showNewProjectModal}
+          onClose={() => setShowNewProjectModal(false)}
+          onProjectCreated={() => {
+            setShowNewProjectModal(false);
+          }}
         />
       </div>
     </div>
