@@ -418,6 +418,8 @@ const ProjectDashboard: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [showSwitchProjectConfirm, setShowSwitchProjectConfirm] = useState<boolean>(false);
   const [isLoadedFromCache, setIsLoadedFromCache] = useState<boolean>(false);
+  const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
+  const [editProjectData, setEditProjectData] = useState<Partial<ProjectData["project"]>>({});
 
   // Load cached data on mount
   useEffect(() => {
@@ -776,7 +778,45 @@ const ProjectDashboard: React.FC = () => {
     setIsCreatingNewItem(false);
     setNewItemData({});
     setShowSwitchProjectConfirm(false);
+    setIsEditingProject(false);
+    setEditProjectData({});
     setShowImportModal(true);
+  };
+
+  const toggleProjectEditMode = (): void => {
+    if (isEditingProject) {
+      setIsEditingProject(false);
+      setEditProjectData({});
+    } else {
+      setIsEditingProject(true);
+      setEditProjectData({ ...projectData?.project });
+    }
+  };
+
+  const updateProjectData = (field: keyof ProjectData["project"], value: any): void => {
+    setEditProjectData({
+      ...editProjectData,
+      [field]: value
+    });
+  };
+
+  const saveProjectData = (): void => {
+    if (!projectData || !editProjectData) return;
+
+    setProjectData({
+      ...projectData,
+      project: {
+        ...projectData.project,
+        ...editProjectData,
+      },
+      metadata: {
+        ...projectData.metadata,
+        lastUpdated: new Date().toISOString(),
+      }
+    });
+
+    setIsEditingProject(false);
+    setEditProjectData({});
   };
 
   const getStatusColor = (status: StatusType): string => {
@@ -1139,24 +1179,179 @@ const ProjectDashboard: React.FC = () => {
             {/* Project Overview */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
               <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    {projectData.project.name}
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-300 mt-1">
-                    {projectData.project.description}
-                  </p>
+                {isEditingProject ? (
+                  <div className="flex-1 space-y-4">
+                    {/* Project Name */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Project Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editProjectData.name || ""}
+                        onChange={(e) => updateProjectData("name", e.target.value)}
+                        className="w-full text-lg font-bold p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    
+                    {/* Project Description */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        value={editProjectData.description || ""}
+                        onChange={(e) => updateProjectData("description", e.target.value)}
+                        rows={2}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Status */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Status
+                        </label>
+                        <select
+                          value={editProjectData.status || "backlog"}
+                          onChange={(e) => updateProjectData("status", e.target.value as StatusType)}
+                          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="backlog">Backlog</option>
+                          <option value="todo">Todo</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="review">Review</option>
+                          <option value="testing">Testing</option>
+                          <option value="done">Done</option>
+                          <option value="blocked">Blocked</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      {/* Priority */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Priority
+                        </label>
+                        <select
+                          value={editProjectData.priority || "medium"}
+                          onChange={(e) => updateProjectData("priority", e.target.value as PriorityType)}
+                          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Project Type */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Project Type
+                      </label>
+                      <select
+                        value={editProjectData.type || "software"}
+                        onChange={(e) => updateProjectData("type", e.target.value)}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="software">Software</option>
+                        <option value="infrastructure">Infrastructure</option>
+                        <option value="design">Design</option>
+                        <option value="research">Research</option>
+                        <option value="physical">Physical</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Estimated Effort */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Estimated Effort
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={editProjectData.estimatedEffort?.value || ""}
+                          onChange={(e) => updateProjectData("estimatedEffort", {
+                            ...editProjectData.estimatedEffort,
+                            value: parseFloat(e.target.value) || 0
+                          })}
+                          placeholder="Value"
+                          className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        />
+                        <select
+                          value={editProjectData.estimatedEffort?.unit || "hours"}
+                          onChange={(e) => updateProjectData("estimatedEffort", {
+                            ...editProjectData.estimatedEffort,
+                            unit: e.target.value as EstimatedEffort["unit"]
+                          })}
+                          className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="hours">Hours</option>
+                          <option value="days">Days</option>
+                          <option value="weeks">Weeks</option>
+                          <option value="months">Months</option>
+                          <option value="story_points">Story Points</option>
+                          <option value="t_shirt_size">T-Shirt Size</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                      {projectData.project.name}
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-300 mt-1">
+                      {projectData.project.description}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-3 ml-4">
+                  {!isEditingProject ? (
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                        projectData.project.status
+                      )}`}
+                    >
+                      {projectData.project.status.replace("_", " ")}
+                    </span>
+                  ) : null}
+                  
+                  <button
+                    onClick={toggleProjectEditMode}
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+                    type="button"
+                    title={isEditingProject ? "Cancel edit" : "Edit project"}
+                  >
+                    {isEditingProject ? (
+                      <X className="w-4 h-4" />
+                    ) : (
+                      <Edit3 className="w-4 h-4" />
+                    )}
+                  </button>
+                  
+                  {isEditingProject && (
+                    <button
+                      onClick={saveProjectData}
+                      className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                      type="button"
+                      title="Save changes"
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                    projectData.project.status
-                  )}`}
-                >
-                  {projectData.project.status.replace("_", " ")}
-                </span>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              {!isEditingProject && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
                     {projectData.metadata?.totalWorkItems || 0}
@@ -1188,7 +1383,8 @@ const ProjectDashboard: React.FC = () => {
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Priority</div>
                 </div>
-              </div>
+                </div>
+              )}
 
               {projectData.project.tags &&
                 projectData.project.tags.length > 0 && (
