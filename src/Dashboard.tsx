@@ -14,8 +14,6 @@ import {
   Zap,
   Upload,
   Download,
-  Settings,
-  Layout,
   Edit3,
   Save,
   X,
@@ -33,6 +31,7 @@ import {
   type WorkItem,
   type EstimatedEffort,
 } from "./schemas";
+import { ProjectImportModal } from "./components";
 
 // localStorage utilities
 const STORAGE_KEYS = {
@@ -407,11 +406,8 @@ const EditWorkItemForm: React.FC<{
 };
 
 const ProjectDashboard: React.FC = () => {
-  const [jsonInput, setJsonInput] = useState<string>("");
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
-  const [error, setError] = useState<string>("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<"metadata" | "project">("metadata");
   const [fileName, setFileName] = useState<string>("");
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
   const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
@@ -419,6 +415,8 @@ const ProjectDashboard: React.FC = () => {
   const [newItemData, setNewItemData] = useState<Partial<WorkItem>>({});
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [showSwitchProjectConfirm, setShowSwitchProjectConfirm] = useState<boolean>(false);
   const [isLoadedFromCache, setIsLoadedFromCache] = useState<boolean>(false);
 
   // Load cached data on mount
@@ -427,7 +425,6 @@ const ProjectDashboard: React.FC = () => {
     if (data) {
       setProjectData(data);
       setFileName(filename);
-      setJsonInput(JSON.stringify(data, null, 2));
       setIsLoadedFromCache(true);
       // Auto-expand epics on load
       const epics = data.workItems
@@ -437,15 +434,12 @@ const ProjectDashboard: React.FC = () => {
       
       // Show cache notification briefly
       setTimeout(() => setIsLoadedFromCache(false), 3000);
+    } else {
+      // No cached data found, show import modal
+      setShowImportModal(true);
     }
   }, []);
 
-  // Update JSON input whenever project data changes
-  useEffect(() => {
-    if (projectData) {
-      setJsonInput(JSON.stringify(projectData, null, 2));
-    }
-  }, [projectData]);
 
   // Auto-save to localStorage whenever project data changes
   useEffect(() => {
@@ -454,72 +448,16 @@ const ProjectDashboard: React.FC = () => {
     }
   }, [projectData, fileName]);
 
-  const parseJson = (): void => {
-    try {
-      const rawData = JSON.parse(jsonInput);
-      const validationResult = ProjectDataSchema.safeParse(rawData);
-      
-      if (!validationResult.success) {
-        const errorMessages = validationResult.error.issues.map(
-          (err) => `${err.path.join('.')}: ${err.message}`
-        ).join('\n');
-        setError(`Schema validation failed:\n${errorMessages}`);
-        setProjectData(null);
-        return;
-      }
-      
-      const parsed = validationResult.data;
-      setProjectData(parsed);
-      setError("");
-      // Auto-expand epics on load
-      const epics =
-        parsed.workItems
-          ?.filter((item) => item.type === "epic")
-          .map((item) => item.id) || [];
-      setExpandedItems(new Set(epics));
-    } catch (e) {
-      setError(`Invalid JSON format: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      setProjectData(null);
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        setJsonInput(content);
-        try {
-          const rawData = JSON.parse(content);
-          const validationResult = ProjectDataSchema.safeParse(rawData);
-          
-          if (!validationResult.success) {
-            const errorMessages = validationResult.error.issues.map(
-              (err) => `${err.path.join('.')}: ${err.message}`
-            ).join('\n');
-            setError(`Schema validation failed in uploaded file:\n${errorMessages}`);
-            setProjectData(null);
-            return;
-          }
-          
-          const parsed = validationResult.data;
-          setProjectData(parsed);
-          setError("");
-          // Auto-expand epics on load
-          const epics =
-            parsed.workItems
-              ?.filter((item) => item.type === "epic")
-              .map((item) => item.id) || [];
-          setExpandedItems(new Set(epics));
-        } catch (e) {
-          setError(`Invalid JSON format in uploaded file: ${e instanceof Error ? e.message : 'Unknown error'}`);
-          setProjectData(null);
-        }
-      };
-      reader.readAsText(file);
-    }
+  const handleProjectLoaded = (data: ProjectData, filename: string): void => {
+    setProjectData(data);
+    setFileName(filename);
+    setIsLoadedFromCache(false);
+    
+    // Auto-expand epics on load
+    const epics = data.workItems
+      ?.filter((item) => item.type === "epic")
+      .map((item) => item.id) || [];
+    setExpandedItems(new Set(epics));
   };
 
   const handleUnload = (): void => {
@@ -539,16 +477,15 @@ const ProjectDashboard: React.FC = () => {
       // Clear localStorage to allow loading different project
       clearLocalStorage();
       
-      // Then clear the application state
+      // Then clear the application state and show import modal
       setProjectData(null);
-      setJsonInput("");
       setFileName("");
-      setError("");
       setExpandedItems(new Set());
       setEditingItems(new Set());
       setEditFormData({});
       setIsCreatingNewItem(false);
       setNewItemData({});
+      setShowImportModal(true);
     }
   };
 
@@ -821,18 +758,25 @@ const ProjectDashboard: React.FC = () => {
     cancelDelete();
   };
 
+  const confirmSwitchProject = (): void => {
+    setShowSwitchProjectConfirm(true);
+  };
+
+  const cancelSwitchProject = (): void => {
+    setShowSwitchProjectConfirm(false);
+  };
+
   const clearCacheAndReset = (): void => {
     clearLocalStorage();
     setProjectData(null);
-    setJsonInput("");
     setFileName("");
-    setError("");
     setExpandedItems(new Set());
     setEditingItems(new Set());
     setEditFormData({});
     setIsCreatingNewItem(false);
     setNewItemData({});
-    setActiveTab("metadata");
+    setShowSwitchProjectConfirm(false);
+    setShowImportModal(true);
   };
 
   const getStatusColor = (status: StatusType): string => {
@@ -1138,293 +1082,267 @@ const ProjectDashboard: React.FC = () => {
   };
 
 
-  const renderMetadataTab = (): JSX.Element => (
-    <div className="space-y-6">
-      {/* Cache Loaded Notification */}
-      {isLoadedFromCache && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-          <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Project Restored from Cache</h4>
-          <p className="text-sm text-blue-700 dark:text-blue-300">
-            Your previous project data has been automatically restored. Changes are automatically saved to your browser.
-          </p>
-        </div>
-      )}
-
-      {/* Validation Error Display */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Validation Error</h4>
-          <pre className="text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap overflow-x-auto">{error}</pre>
-        </div>
-      )}
-
-      {/* File Upload Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Load Project Data
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Upload JSON File
-            </label>
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileUpload}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            {fileName && (
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Loaded: {fileName}</p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {projectData && (
-              <button
-                onClick={handleUnload}
-                type="button"
-                className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
-              >
-                <Download className="w-4 h-4" />
-                <span>Save & Unload Project</span>
-              </button>
-            )}
-            {(projectData || localStorage.getItem(STORAGE_KEYS.PROJECT_DATA)) && (
-              <button
-                onClick={clearCacheAndReset}
-                type="button"
-                className="flex items-center space-x-2 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200"
-              >
-                <X className="w-4 h-4" />
-                <span>Clear Cache & Start Fresh</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* JSON Editor */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Direct JSON Editor
-        </h2>
-        <textarea
-          value={jsonInput}
-          onChange={(e) => setJsonInput(e.target.value)}
-          placeholder="Paste your project JSON here..."
-          className="w-full h-96 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <button
-          onClick={parseJson}
-          type="button"
-          className="mt-3 flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
-        >
-          <Upload className="w-4 h-4" />
-          <span>Load from Text</span>
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Header with project actions */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Project Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Load, edit, and manage your project data with enhanced file handling
-          </p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-6">
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab("metadata")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "metadata"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
-                }`}
-                type="button"
-              >
-                <div className="flex items-center space-x-2">
-                  <Settings className="w-4 h-4" />
-                  <span>Metadata</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("project")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "project"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
-                } ${!projectData ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={!projectData}
-                type="button"
-              >
-                <div className="flex items-center space-x-2">
-                  <Layout className="w-4 h-4" />
-                  <span>Project</span>
-                </div>
-              </button>
-            </nav>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                {projectData ? projectData.project.name : "Project Lite"}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {projectData ? projectData.project.description : "Load or create a project to get started"}
+              </p>
+            </div>
+            {projectData && (
+              <div className="flex items-center space-x-3">
+                {fileName && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">File: {fileName}</span>
+                )}
+                <button
+                  onClick={handleUnload}
+                  className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+                  type="button"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Save & Unload</span>
+                </button>
+                <button
+                  onClick={confirmSwitchProject}
+                  className="flex items-center space-x-2 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200"
+                  type="button"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Switch Project</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Tab Content */}
-        {activeTab === "metadata" ? (
-          renderMetadataTab()
-        ) : (
+        {/* Cache Loaded Notification */}
+        {isLoadedFromCache && (
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Project Restored from Cache</h4>
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Your previous project data has been automatically restored. Changes are automatically saved to your browser.
+            </p>
+          </div>
+        )}
+
+        {/* Project Content */}
+        {projectData ? (
           <div className="space-y-6">
-            {projectData && (
-              <>
-                {/* Project Overview */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                        {projectData.project.name}
-                      </h2>
-                      <p className="text-gray-600 dark:text-gray-300 mt-1">
-                        {projectData.project.description}
-                      </p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                        projectData.project.status
-                      )}`}
-                    >
-                      {projectData.project.status.replace("_", " ")}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {projectData.metadata?.totalWorkItems || 0}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Total Items</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {projectData.metadata?.completedWorkItems || 0}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Completed</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {projectData.project.estimatedEffort?.value || 0}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        Est.{" "}
-                        {projectData.project.estimatedEffort?.unit || "hours"}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div
-                        className={`text-2xl font-bold ${getPriorityColor(
-                          projectData.project.priority
-                        )}`}
-                      >
-                        {projectData.project.priority?.toUpperCase() || "MED"}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Priority</div>
-                    </div>
-                  </div>
-
-                  {projectData.project.tags &&
-                    projectData.project.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        {projectData.project.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+            {/* Project Overview */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    {projectData.project.name}
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300 mt-1">
+                    {projectData.project.description}
+                  </p>
                 </div>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                    projectData.project.status
+                  )}`}
+                >
+                  {projectData.project.status.replace("_", " ")}
+                </span>
+              </div>
 
-                {/* Work Items */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                      Work Items
-                    </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {projectData.metadata?.totalWorkItems || 0}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Total Items</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {projectData.metadata?.completedWorkItems || 0}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Completed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {projectData.project.estimatedEffort?.value || 0}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Est.{" "}
+                    {projectData.project.estimatedEffort?.unit || "hours"}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div
+                    className={`text-2xl font-bold ${getPriorityColor(
+                      projectData.project.priority
+                    )}`}
+                  >
+                    {projectData.project.priority?.toUpperCase() || "MED"}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Priority</div>
+                </div>
+              </div>
+
+              {projectData.project.tags &&
+                projectData.project.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    {projectData.project.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+            </div>
+
+            {/* Work Items */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  Work Items
+                </h2>
+                <button
+                  onClick={startCreateNewItem}
+                  className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+                  type="button"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Work Item</span>
+                </button>
+              </div>
+
+              {/* New Work Item Form */}
+              {isCreatingNewItem && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      Create New Work Item
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={saveNewItem}
+                        disabled={!newItemData.title?.trim()}
+                        className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        type="button"
+                        title="Save new item"
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelCreateNewItem}
+                        className="p-1 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+                        type="button"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <EditWorkItemForm
+                    item={newItemData}
+                    onUpdate={updateNewItemData}
+                    availableParents={projectData?.workItems || []}
+                  />
+                </div>
+              )}
+
+              {/* Work Items List */}
+              {workItemHierarchy.length > 0 ? (
+                workItemHierarchy.map((item) => renderWorkItem(item))
+              ) : (
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">
+                    No work items found in the project data.
+                  </p>
+                  {!isCreatingNewItem && (
                     <button
                       onClick={startCreateNewItem}
-                      className="flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
+                      className="mt-4 flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200 mx-auto"
                       type="button"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Add Work Item</span>
+                      <span>Add Your First Work Item</span>
                     </button>
-                  </div>
-
-                  {/* New Work Item Form */}
-                  {isCreatingNewItem && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          Create New Work Item
-                        </h3>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={saveNewItem}
-                            disabled={!newItemData.title?.trim()}
-                            className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            type="button"
-                            title="Save new item"
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={cancelCreateNewItem}
-                            className="p-1 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 transition-colors"
-                            type="button"
-                            title="Cancel"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <EditWorkItemForm
-                        item={newItemData}
-                        onUpdate={updateNewItemData}
-                        availableParents={projectData?.workItems || []}
-                      />
-                    </div>
-                  )}
-
-                  {/* Work Items List */}
-                  {workItemHierarchy.length > 0 ? (
-                    workItemHierarchy.map((item) => renderWorkItem(item))
-                  ) : (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
-                      <p className="text-gray-500 dark:text-gray-400">
-                        No work items found in the project data.
-                      </p>
-                      {!isCreatingNewItem && (
-                        <button
-                          onClick={startCreateNewItem}
-                          className="mt-4 flex items-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200 mx-auto"
-                          type="button"
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span>Add Your First Work Item</span>
-                        </button>
-                      )}
-                    </div>
                   )}
                 </div>
-              </>
-            )}
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Welcome to Project Lite
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-8">
+                Get started by loading an existing project or creating a new one.
+              </p>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center space-x-2 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200 mx-auto"
+                type="button"
+              >
+                <Upload className="w-5 h-5" />
+                <span>Load or Create Project</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Project Import Modal */}
+        <ProjectImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onProjectLoaded={handleProjectLoaded}
+        />
+
+        {/* Switch Project Confirmation Modal */}
+        {showSwitchProjectConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Switch to Different Project?
+              </h3>
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                  Are you sure you want to switch to a different project?
+                </p>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3 mb-3">
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    <strong>⚠️ Warning:</strong> Any unsaved changes to your current project will be lost. Your project data is automatically saved to your browser cache, but switching will clear this data.
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Consider using "Save & Unload" first to download your current project before switching.
+                </p>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelSwitchProject}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={clearCacheAndReset}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  type="button"
+                >
+                  Switch Project
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
