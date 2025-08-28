@@ -3,8 +3,10 @@ import ProjectImportModal from '../components/ProjectImportModal';
 import { ProjectCard } from '../components/ProjectCard';
 import { WorkItemHierarchy } from '../components/WorkItemHierarchy';
 import { CreateWorkItemForm } from '../components/CreateWorkItemForm';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { useProjectContext } from '../context/ProjectContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 export default function ProjectDashboard() {
   const { state, dispatch } = useProjectContext();
@@ -25,31 +27,40 @@ export default function ProjectDashboard() {
   } = state;
 
   const { clearStorage } = useLocalStorage();
+  const { hasUnsavedChanges, executeWithConfirmation, confirmAction, cancelAction, showConfirmation } = useUnsavedChanges();
   
 
   const handleProjectLoaded = (data: import('../schemas').ProjectData, filename: string): void => {
-    dispatch({ type: 'SET_PROJECT_DATA', payload: { data, fileName: filename } });
+    const loadProject = () => {
+      dispatch({ type: 'SET_PROJECT_DATA', payload: { data, fileName: filename } });
+    };
+    
+    executeWithConfirmation(loadProject);
   };
 
   const handleUnload = (): void => {
     if (projectData) {
-      // Download the file first
-      const dataStr = JSON.stringify(projectData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName || "project-data.json";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      // Clear localStorage to allow loading different project
-      clearStorage();
-      
-      // Reset state and show import modal
-      dispatch({ type: 'CLEAR_PROJECT_DATA' });
+      const unloadProject = () => {
+        // Download the file first
+        const dataStr = JSON.stringify(projectData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName || "project-data.json";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        // Clear localStorage to allow loading different project
+        clearStorage();
+        
+        // Reset state and show import modal
+        dispatch({ type: 'CLEAR_PROJECT_DATA' });
+      };
+
+      executeWithConfirmation(unloadProject);
     }
   };
 
@@ -149,7 +160,16 @@ export default function ProjectDashboard() {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Project Pulse</h1>
-            <p className="text-gray-600 dark:text-gray-400">Load a project to get started</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Load a project to get started</p>
+            {!showImportModal && (
+              <button
+                onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                type="button"
+              >
+                Load Project
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -178,12 +198,20 @@ export default function ProjectDashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Project Pulse
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <span>Project Pulse</span>
+              {hasUnsavedChanges && (
+                <span className="text-orange-500 text-lg" title="You have unsaved changes">
+                  ●
+                </span>
+              )}
             </h1>
             {fileName && (
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {fileName}
+                {hasUnsavedChanges && (
+                  <span className="text-orange-500 ml-2">• Unsaved changes</span>
+                )}
               </p>
             )}
           </div>
@@ -317,6 +345,18 @@ export default function ProjectDashboard() {
             </div>
           </div>
         </Modal>
+
+        {/* Unsaved Changes Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showConfirmation}
+          onClose={cancelAction}
+          onConfirm={confirmAction}
+          title="Unsaved Changes"
+          message="You have unsaved changes that will be lost. Are you sure you want to continue?"
+          confirmText="Continue"
+          cancelText="Cancel"
+          variant="warning"
+        />
       </div>
     </div>
   );

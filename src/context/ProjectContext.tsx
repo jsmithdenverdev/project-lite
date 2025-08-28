@@ -9,6 +9,7 @@ export interface ProjectState {
   projectData: ProjectData | null;
   fileName: string;
   isLoadedFromCache: boolean;
+  hasUnsavedChanges: boolean;
 
   // Work Items UI state
   expandedItems: Set<string>;
@@ -27,15 +28,20 @@ export interface ProjectState {
   showImportModal: boolean;
   showSwitchProjectConfirm: boolean;
   showDeleteConfirm: boolean;
+  showUnsavedChangesConfirm: boolean;
   itemToDelete: string | null;
+  pendingAction: (() => void) | null;
 }
 
 // Action Types
 export type ProjectAction =
   // Project actions
   | { type: 'SET_PROJECT_DATA'; payload: { data: ProjectData; fileName: string } }
+  | { type: 'LOAD_CACHED_DATA'; payload: { data: ProjectData; fileName: string } }
   | { type: 'CLEAR_PROJECT_DATA' }
   | { type: 'SET_CACHE_LOADED'; payload: boolean }
+  | { type: 'MARK_SAVED' }
+  | { type: 'MARK_UNSAVED' }
   
   // Work item UI actions
   | { type: 'TOGGLE_EXPANDED'; payload: string }
@@ -63,6 +69,8 @@ export type ProjectAction =
   | { type: 'SET_MODAL'; payload: { modal: keyof Pick<ProjectState, 'showImportModal' | 'showSwitchProjectConfirm' | 'showDeleteConfirm'>; show: boolean } }
   | { type: 'TOGGLE_IMPORT_MODAL' }
   | { type: 'TOGGLE_DELETE_CONFIRM' }
+  | { type: 'SHOW_UNSAVED_CHANGES_CONFIRM'; payload: () => void }
+  | { type: 'HIDE_UNSAVED_CHANGES_CONFIRM' }
   | { type: 'SET_DELETE_ITEM'; payload: string | null };
 
 // Initial State
@@ -70,6 +78,7 @@ const initialState: ProjectState = {
   projectData: null,
   fileName: '',
   isLoadedFromCache: false,
+  hasUnsavedChanges: false,
   
   expandedItems: new Set(),
   editingItems: new Set(),
@@ -81,10 +90,12 @@ const initialState: ProjectState = {
   isCreatingNewItem: false,
   newItemData: {},
   
-  showImportModal: true,
+  showImportModal: false,
   showSwitchProjectConfirm: false,
   showDeleteConfirm: false,
+  showUnsavedChangesConfirm: false,
   itemToDelete: null,
+  pendingAction: null,
 };
 
 // Reducer
@@ -95,6 +106,21 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         ...state,
         projectData: action.payload.data,
         fileName: action.payload.fileName,
+        hasUnsavedChanges: true, // Mark as unsaved to trigger caching
+        // Auto-expand epics on load
+        expandedItems: new Set(
+          action.payload.data.workItems
+            ?.filter(item => item.type === 'epic')
+            .map(item => item.id) || []
+        ),
+      };
+
+    case 'LOAD_CACHED_DATA':
+      return {
+        ...state,
+        projectData: action.payload.data,
+        fileName: action.payload.fileName,
+        hasUnsavedChanges: false, // Cached data is already saved
         // Auto-expand epics on load
         expandedItems: new Set(
           action.payload.data.workItems
@@ -111,6 +137,12 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'SET_CACHE_LOADED':
       return { ...state, isLoadedFromCache: action.payload };
+
+    case 'MARK_SAVED':
+      return { ...state, hasUnsavedChanges: false };
+
+    case 'MARK_UNSAVED':
+      return { ...state, hasUnsavedChanges: true };
 
     case 'TOGGLE_EXPANDED': {
       const newExpanded = new Set(state.expandedItems);
@@ -202,6 +234,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         },
         editingItems: newEditingItems,
         editFormData: newEditFormData,
+        hasUnsavedChanges: true,
       };
     }
 
@@ -240,6 +273,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         },
         isEditingProject: false,
         editProjectData: {},
+        hasUnsavedChanges: true,
       };
 
     case 'SET_CREATING_ITEM':
@@ -305,6 +339,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         },
         isCreatingNewItem: false,
         newItemData: {},
+        hasUnsavedChanges: true,
       };
     }
 
@@ -330,6 +365,20 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
       return {
         ...state,
         showDeleteConfirm: !state.showDeleteConfirm,
+      };
+
+    case 'SHOW_UNSAVED_CHANGES_CONFIRM':
+      return {
+        ...state,
+        showUnsavedChangesConfirm: true,
+        pendingAction: action.payload,
+      };
+
+    case 'HIDE_UNSAVED_CHANGES_CONFIRM':
+      return {
+        ...state,
+        showUnsavedChangesConfirm: false,
+        pendingAction: null,
       };
 
     case 'ADD_TAG': {
@@ -358,6 +407,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
             lastUpdated: new Date().toISOString(),
           },
         },
+        hasUnsavedChanges: true,
       };
     }
 
@@ -387,6 +437,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
             lastUpdated: new Date().toISOString(),
           },
         },
+        hasUnsavedChanges: true,
       };
     }
 
@@ -421,6 +472,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
             lastUpdated: new Date().toISOString(),
           },
         },
+        hasUnsavedChanges: true,
       };
     }
 
@@ -450,6 +502,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
             lastUpdated: new Date().toISOString(),
           },
         },
+        hasUnsavedChanges: true,
       };
     }
 
@@ -480,6 +533,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         expandedItems: new Set(Array.from(state.expandedItems).filter(id => id !== itemId)),
         itemToDelete: null,
         showDeleteConfirm: false,
+        hasUnsavedChanges: true,
       };
     }
 
@@ -501,26 +555,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   // Load cached data on mount
   useEffect(() => {
-    const { data, filename } = loadFromStorage();
-    if (data) {
-      dispatch({ type: 'SET_PROJECT_DATA', payload: { data, fileName: filename } });
-      dispatch({ type: 'SET_CACHE_LOADED', payload: true });
-      dispatch({ type: 'TOGGLE_IMPORT_MODAL' }); // Hide the import modal
-      
-      // Show cache notification briefly
-      setTimeout(() => dispatch({ type: 'SET_CACHE_LOADED', payload: false }), 3000);
+    try {
+      const { data, filename } = loadFromStorage();
+      if (data) {
+        dispatch({ type: 'LOAD_CACHED_DATA', payload: { data, fileName: filename } });
+        dispatch({ type: 'SET_CACHE_LOADED', payload: true });
+        
+        // Show cache notification briefly
+        setTimeout(() => dispatch({ type: 'SET_CACHE_LOADED', payload: false }), 3000);
+      } else {
+        // No cached data found, show import modal
+        dispatch({ type: 'TOGGLE_IMPORT_MODAL' });
+      }
+    } catch (error) {
+      console.warn('Failed to load cached data:', error);
+      // On any error, show import modal
+      dispatch({ type: 'TOGGLE_IMPORT_MODAL' });
     }
   }, [loadFromStorage]);
 
   // Auto-save to localStorage with debouncing (500ms delay)
   useDebounce(
     () => {
-      if (state.projectData && state.fileName) {
+      if (state.projectData && state.fileName && state.hasUnsavedChanges) {
         saveToStorage(state.projectData, state.fileName);
+        dispatch({ type: 'MARK_SAVED' });
       }
     },
     500, // 500ms delay
-    [state.projectData, state.fileName, saveToStorage]
+    [state.projectData, state.fileName, state.hasUnsavedChanges, saveToStorage]
   );
 
   return (
