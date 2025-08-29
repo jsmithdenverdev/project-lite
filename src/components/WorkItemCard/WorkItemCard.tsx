@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -39,6 +40,12 @@ export default function WorkItemCard({
   onToggleAcceptanceCriteria: _onToggleAcceptanceCriteria,
   onAddChild,
 }: WorkItemCardProps) {
+  // Initialize validation state based on whether item has a title
+  const [isFormValid, setIsFormValid] = useState(() => {
+    const currentData = _editData || item;
+    return currentData.title && currentData.title.trim().length > 0;
+  });
+
   // Defensive checks to prevent crashes
   if (!item || !item.id || !item.title) {
     return (
@@ -126,7 +133,8 @@ export default function WorkItemCard({
                 </button>
                 <button
                   onClick={onSave}
-                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                  disabled={!isFormValid}
+                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                   type="button"
                   title="Save changes"
                 >
@@ -145,6 +153,7 @@ export default function WorkItemCard({
               availableParents={_availableParents}
               onUpdateField={_onUpdateField}
               onSave={onSave}
+              onValidationChange={setIsFormValid}
             />
           ) : (
             <div>
@@ -294,6 +303,7 @@ export default function WorkItemCard({
                 availableParents={_availableParents}
                 onUpdateField={_onUpdateField}
                 onSave={onSave}
+                onValidationChange={setIsFormValid}
               />
             ) : (
               <div>
@@ -449,7 +459,8 @@ export default function WorkItemCard({
               </button>
               <button
                 onClick={onSave}
-                className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                disabled={!isFormValid}
+                className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                 type="button"
                 title="Save changes"
               >

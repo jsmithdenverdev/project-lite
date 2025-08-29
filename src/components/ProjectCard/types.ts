@@ -15,6 +15,7 @@ export interface ProjectCardEditProps {
   editData: Partial<ProjectData['project']>;
   onUpdateField: (field: keyof ProjectData['project'], value: any) => void;
   onSave?: () => void;
+  onValidationChange?: (isValid: boolean) => void;
 }
 
 export interface ProjectStatsProps {

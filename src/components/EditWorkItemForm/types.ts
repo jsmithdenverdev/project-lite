@@ -10,6 +10,7 @@ export interface EditWorkItemFormProps {
   availableParents: WorkItem[];
   onUpdateField: (field: keyof WorkItem, value: WorkItem[keyof WorkItem]) => void;
   onSave?: () => void;
+  onValidationChange?: (isValid: boolean) => void;
 }
 
 // Enhanced props interface with react-hook-form integration

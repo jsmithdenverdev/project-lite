@@ -9,6 +9,7 @@ export default function EditWorkItemForm({
   availableParents,
   onUpdateField,
   onSave,
+  onValidationChange,
 }: EditWorkItemFormProps) {
   // Form management with react-hook-form
   const {
@@ -31,6 +32,24 @@ export default function EditWorkItemForm({
     },
     mode: 'onChange',
   });
+
+  // Notify parent about validation state
+  useEffect(() => {
+    if (onValidationChange) {
+      // Check if title has content
+      const titleValue = watch('title');
+      const hasValidTitle = Boolean(titleValue && titleValue.trim().length > 0);
+      onValidationChange(hasValidTitle);
+    }
+  }, [watch, onValidationChange]);
+  
+  // Set initial validation state
+  useEffect(() => {
+    if (onValidationChange) {
+      const hasValidTitle = editData.title && editData.title.trim().length > 0;
+      onValidationChange(hasValidTitle || false);
+    }
+  }, []);
 
   // Sync form data back to parent component
   useEffect(() => {

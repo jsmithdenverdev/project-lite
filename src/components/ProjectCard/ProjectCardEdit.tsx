@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { EditProjectFormSchema, type EditProjectFormData } from '../../schemas';
 import type { ProjectCardEditProps } from './types';
 
-export default function ProjectCardEdit({ editData, onUpdateField, onSave }: ProjectCardEditProps) {
+export default function ProjectCardEdit({ editData, onUpdateField, onSave, onValidationChange }: ProjectCardEditProps) {
   // Form management with react-hook-form
   const {
     register,
@@ -23,6 +23,24 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
     },
     mode: 'onChange',
   });
+
+  // Notify parent about validation state
+  useEffect(() => {
+    if (onValidationChange) {
+      // Check if name has content
+      const nameValue = watch('name');
+      const hasValidName = Boolean(nameValue && nameValue.trim().length > 0);
+      onValidationChange(hasValidName);
+    }
+  }, [watch, onValidationChange]);
+  
+  // Set initial validation state
+  useEffect(() => {
+    if (onValidationChange) {
+      const hasValidName = editData.name && editData.name.trim().length > 0;
+      onValidationChange(hasValidName || false);
+    }
+  }, []);
 
   // Sync form data back to parent component
   useEffect(() => {

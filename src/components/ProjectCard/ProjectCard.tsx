@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Edit3, Save, X } from 'lucide-react';
 import { StatusBadge } from '../StatusBadge';
 import ProjectCardEdit from './ProjectCardEdit';
@@ -14,6 +15,11 @@ export default function ProjectCard({
   onCancel,
   onUpdateField,
 }: ProjectCardProps) {
+  // Initialize validation state based on whether project has a name
+  const [isFormValid, setIsFormValid] = useState(() => {
+    const currentData = editData || project;
+    return currentData.name && currentData.name.trim().length > 0;
+  });
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
       {/* Mobile Layout */}
@@ -40,7 +46,8 @@ export default function ProjectCard({
             {isEditing && (
               <button
                 onClick={onSave}
-                className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+                disabled={!isFormValid}
+                className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                 type="button"
                 title="Save changes"
               >
@@ -57,6 +64,7 @@ export default function ProjectCard({
               editData={editData} 
               onUpdateField={onUpdateField}
               onSave={onSave}
+              onValidationChange={setIsFormValid}
             />
           ) : (
             <div>
@@ -78,6 +86,7 @@ export default function ProjectCard({
             editData={editData} 
             onUpdateField={onUpdateField}
             onSave={onSave}
+            onValidationChange={setIsFormValid}
           />
         ) : (
           <div>
@@ -111,7 +120,8 @@ export default function ProjectCard({
           {isEditing && (
             <button
               onClick={onSave}
-              className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors"
+              disabled={!isFormValid}
+              className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
               type="button"
               title="Save changes"
             >
