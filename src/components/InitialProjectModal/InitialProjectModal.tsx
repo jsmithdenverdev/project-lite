@@ -136,7 +136,7 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
                     Import Project
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Upload JSON file or paste data
+                    Upload JSON file from your computer
                   </p>
                 </div>
               </div>
@@ -148,7 +148,7 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
                 Import from File
               </button>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                Load an existing project from JSON data or file upload
+                Load an existing project from a JSON file
               </p>
             </div>
 
