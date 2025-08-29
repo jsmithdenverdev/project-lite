@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderOpen, Upload, FileText, Plus, Sparkles } from 'lucide-react';
+import { FolderOpen, Upload, Plus, Sparkles } from 'lucide-react';
 import { Modal } from '../Modal';
 import { ProjectSelector } from '../ProjectSelector';
 import { NewProjectModal } from '../NewProjectModal';
@@ -43,13 +43,14 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
     }
   };
 
+
   if (!isOpen) return null;
 
   return (
     <>
       <Modal 
         isOpen={isOpen} 
-        onClose={hasExistingProjects ? onClose : () => {}} // Only allow closing if there are existing projects
+        onClose={hasExistingProjects ? onClose : undefined} // Only allow closing if there are existing projects
         title="Welcome to Project Pulse" 
         size="lg"
       >
@@ -151,32 +152,6 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
               </p>
             </div>
 
-            {/* Browse Examples/Templates - Future feature */}
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 opacity-75">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500 dark:text-gray-400">
-                    Project Templates
-                  </h3>
-                  <p className="text-sm text-gray-400 dark:text-gray-500">
-                    Coming soon
-                  </p>
-                </div>
-              </div>
-              <button
-                disabled
-                className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
-                type="button"
-              >
-                Browse Templates
-              </button>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-                Pre-built project templates for common use cases
-              </p>
-            </div>
           </div>
 
           {/* Quick Actions */}
@@ -211,6 +186,7 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
         onClose={() => setShowImportModal(false)}
         onProjectLoaded={handleProjectImported}
       />
+
     </>
   );
 }

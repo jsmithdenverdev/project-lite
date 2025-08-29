@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   title?: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -37,7 +37,7 @@ export default function Modal({
                 {title}
               </h2>
             )}
-            {showCloseButton && (
+            {showCloseButton && onClose && (
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"

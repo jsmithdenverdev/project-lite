@@ -203,16 +203,14 @@ export function ProjectSelector({ className = '' }: ProjectSelectorProps) {
                     <Download className="w-4 h-4" />
                   </button>
                   
-                  {projects.length > 1 && (
-                    <button
-                      onClick={(e) => handleDeleteProject(project, e)}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
-                      title="Delete project"
-                      type="button"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => handleDeleteProject(project, e)}
+                    className="p-1 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+                    title="Delete project"
+                    type="button"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -248,6 +246,11 @@ export function ProjectSelector({ className = '' }: ProjectSelectorProps) {
                 <p className="text-sm text-red-800 dark:text-red-300">
                   ⚠️ This action cannot be undone. All work items and project data will be permanently deleted.
                 </p>
+                {projects.length === 1 && (
+                  <p className="text-sm text-red-800 dark:text-red-300 mt-2">
+                    🗑️ This is your last project. After deletion, you'll need to create or import a new project.
+                  </p>
+                )}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                 Consider exporting the project first if you want to keep a backup.
