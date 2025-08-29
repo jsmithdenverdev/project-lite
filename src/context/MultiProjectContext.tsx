@@ -269,7 +269,7 @@ export function MultiProjectProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initialize = async () => {
       // Check if we need to migrate
-      const hasOldData = localStorage.getItem('project-pulse-data');
+      const hasOldData = localStorage.getItem('project-lite-data');
       if (hasOldData) {
         await actions.migrateFromOldStorage();
       } else {

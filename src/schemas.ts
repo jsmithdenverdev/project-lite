@@ -68,7 +68,7 @@ export const WorkItemSchema = z.object({
 export const ProjectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().optional(),
   type: z.enum(["software", "infrastructure", "design", "research", "physical", "other"]),
   status: WorkItemStatusSchema,
   priority: PrioritySchema,
