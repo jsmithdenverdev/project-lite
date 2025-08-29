@@ -7,6 +7,7 @@ export default function WorkItemHierarchy({
   expandedItems,
   editingItems,
   editFormData,
+  statusFilter = 'all',
   onToggleExpanded,
   onToggleEdit,
   onSaveItem,
@@ -29,6 +30,7 @@ export default function WorkItemHierarchy({
     
     if (validItems.length === 0) return [];
 
+    // Build full hierarchy first
     const itemMap = new Map<string, WorkItemWithChildren>(
       validItems.map((item) => [item.id, { ...item, children: [] }])
     );
@@ -49,8 +51,34 @@ export default function WorkItemHierarchy({
       }
     });
 
-    return rootItems;
-  }, [workItems]);
+    // Apply status filtering recursively while preserving hierarchy
+    const filterByStatus = (items: WorkItemWithChildren[]): WorkItemWithChildren[] => {
+      if (statusFilter === 'all') return items;
+      
+      return items.filter(item => {
+        // Recursively filter children first
+        const filteredChildren = filterByStatus(item.children);
+        
+        // Keep item if:
+        // 1. Its status matches the filter, OR
+        // 2. It has children that match the filter (to preserve hierarchy)
+        const statusMatches = item.status === statusFilter;
+        const hasMatchingChildren = filteredChildren.length > 0;
+        
+        if (statusMatches || hasMatchingChildren) {
+          // Update the item's children with filtered results
+          return {
+            ...item,
+            children: filteredChildren
+          };
+        }
+        
+        return false;
+      }).filter(Boolean) as WorkItemWithChildren[];
+    };
+
+    return filterByStatus(rootItems);
+  }, [workItems, statusFilter]);
 
   const renderWorkItem = (
     item: WorkItemWithChildren,

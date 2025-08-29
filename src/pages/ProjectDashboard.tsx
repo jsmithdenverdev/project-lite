@@ -7,6 +7,7 @@ import { ProjectSelector } from '../components/ProjectSelector';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { InitialProjectModal } from '../components/InitialProjectModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { StatusFilter } from '../components/StatusFilter';
 import { useMultiProject } from '../context/MultiProjectContext';
 import type { WorkItem, WorkItemStatus, Priority } from '../schemas';
 
@@ -29,6 +30,7 @@ export default function ProjectDashboard() {
   const [childrenToDelete, setChildrenToDelete] = useState<WorkItem[]>([]);
   const [isCreatingChild, setIsCreatingChild] = useState(false);
   const [parentForChild, setParentForChild] = useState<string | null>(null);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<WorkItemStatus | 'all'>('all');
 
   const {
     activeProjectId,
@@ -552,6 +554,18 @@ export default function ProjectDashboard() {
             </button>
           </div>
 
+          {/* Status Filter */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Status</h3>
+              <StatusFilter
+                selectedStatus={selectedStatusFilter}
+                onStatusChange={setSelectedStatusFilter}
+                className="flex-wrap"
+              />
+            </div>
+          </div>
+
           {/* Create New Item Form */}
           {isCreatingNewItem && (
             <CreateWorkItemForm
@@ -592,6 +606,7 @@ export default function ProjectDashboard() {
             expandedItems={expandedItems}
             editingItems={editingItems}
             editFormData={editFormData}
+            statusFilter={selectedStatusFilter}
             onToggleExpanded={handleToggleExpanded}
             onToggleEdit={handleToggleEdit}
             onSaveItem={handleSaveItem}
