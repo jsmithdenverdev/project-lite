@@ -441,7 +441,7 @@ export default function ProjectDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4">Project Pulse</h1>
+          <h1 className="text-3xl font-bold mb-4">Project Lite</h1>
           <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
@@ -459,7 +459,7 @@ export default function ProjectDashboard() {
         
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center max-w-md mx-auto px-4">
-            <h1 className="text-3xl font-bold mb-4">Project Pulse</h1>
+            <h1 className="text-3xl font-bold mb-4">Project Lite</h1>
             <p className="text-gray-600 dark:text-gray-400">Ready to start</p>
           </div>
         </div>
@@ -475,7 +475,7 @@ export default function ProjectDashboard() {
         <div className="md:hidden mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Project Pulse
+              Project Lite
             </h1>
           </div>
           
@@ -496,7 +496,7 @@ export default function ProjectDashboard() {
         <div className="hidden md:flex md:justify-between md:items-center mb-6">
           <div className="flex items-center space-x-4">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Project Pulse
+              Project Lite
             </h1>
             <ProjectSelector />
           </div>

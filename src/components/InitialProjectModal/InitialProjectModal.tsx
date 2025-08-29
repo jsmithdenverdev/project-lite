@@ -51,7 +51,7 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
       <Modal 
         isOpen={isOpen} 
         onClose={hasExistingProjects ? onClose : undefined} // Only allow closing if there are existing projects
-        title="Welcome to Project Pulse" 
+        title="Welcome to Project Lite" 
         size="lg"
       >
         <div className="space-y-8">

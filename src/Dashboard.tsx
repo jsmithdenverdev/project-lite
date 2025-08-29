@@ -35,8 +35,8 @@ import { ProjectImportModal } from "./components";
 
 // localStorage utilities
 const STORAGE_KEYS = {
-  PROJECT_DATA: 'project-pulse-data',
-  PROJECT_FILENAME: 'project-pulse-filename',
+  PROJECT_DATA: 'project-lite-data',
+  PROJECT_FILENAME: 'project-lite-filename',
 } as const;
 
 const saveToLocalStorage = (data: ProjectData, filename: string): void => {

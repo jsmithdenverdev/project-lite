@@ -20,7 +20,7 @@ export interface AppSettings {
   value: any;
 }
 
-const DB_NAME = 'project-pulse-db';
+const DB_NAME = 'project-lite-db';
 const DB_VERSION = 1;
 
 const STORES = {
@@ -411,8 +411,8 @@ class IndexedDBService {
   // Migration utilities
   async migrateFromLocalStorage(): Promise<void> {
     const STORAGE_KEYS = {
-      PROJECT_DATA: 'project-pulse-data',
-      PROJECT_FILENAME: 'project-pulse-filename',
+      PROJECT_DATA: 'project-lite-data',
+      PROJECT_FILENAME: 'project-lite-filename',
     };
 
     try {

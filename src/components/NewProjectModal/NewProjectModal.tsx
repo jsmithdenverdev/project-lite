@@ -64,7 +64,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
       const project: Project = {
         id: projectId,
         name: formData.name.trim(),
-        description: formData.description.trim(),
+        description: formData.description.trim() || undefined,
         type: formData.type,
         status: formData.status,
         priority: formData.priority,
