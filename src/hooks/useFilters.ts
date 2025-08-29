@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { FilterValue, FilterOptions, FilterState, WorkItem, WorkItemWithChildren } from '../schemas';
 
 interface UseFiltersProps {
   workItems?: WorkItem[];
+  projectId?: string | null;
 }
 
 interface UseFiltersReturn {
@@ -13,8 +14,11 @@ interface UseFiltersReturn {
   filteredWorkItems: WorkItemWithChildren[];
 }
 
-export function useFilters({ workItems = [] }: UseFiltersProps): UseFiltersReturn {
+const FILTER_STORAGE_PREFIX = 'project-lite-filters-';
+
+export function useFilters({ workItems = [], projectId }: UseFiltersProps): UseFiltersReturn {
   const [activeFilters, setActiveFilters] = useState<FilterValue[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Define available filter options
   const availableFilters: FilterOptions[] = useMemo(() => [
@@ -64,12 +68,59 @@ export function useFilters({ workItems = [] }: UseFiltersProps): UseFiltersRetur
     }
   ], [workItems]);
 
+  // Load filters from localStorage when project changes
+  useEffect(() => {
+    if (!projectId) {
+      setActiveFilters([]);
+      setIsInitialized(true);
+      return;
+    }
+
+    try {
+      const storageKey = `${FILTER_STORAGE_PREFIX}${projectId}`;
+      const savedFilters = localStorage.getItem(storageKey);
+      
+      if (savedFilters) {
+        const parsed = JSON.parse(savedFilters);
+        // Validate that saved filters are still valid
+        if (Array.isArray(parsed)) {
+          setActiveFilters(parsed);
+        }
+      } else {
+        setActiveFilters([]);
+      }
+    } catch (error) {
+      console.warn('Failed to load saved filters:', error);
+      setActiveFilters([]);
+    }
+    
+    setIsInitialized(true);
+  }, [projectId]);
+
+  // Save filters to localStorage when they change
+  useEffect(() => {
+    if (!isInitialized || !projectId) return;
+
+    try {
+      const storageKey = `${FILTER_STORAGE_PREFIX}${projectId}`;
+      
+      if (activeFilters.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(activeFilters));
+      } else {
+        // Clear saved filters when all filters are removed
+        localStorage.removeItem(storageKey);
+      }
+    } catch (error) {
+      console.warn('Failed to save filters:', error);
+    }
+  }, [activeFilters, projectId, isInitialized]);
+
   const filterState: FilterState = {
     activeFilters,
     availableFilters
   };
 
-  const addFilter = (filter: FilterValue) => {
+  const addFilter = useCallback((filter: FilterValue) => {
     setActiveFilters(prev => {
       // Prevent duplicate filters
       const isDuplicate = prev.some(f => 
@@ -81,15 +132,15 @@ export function useFilters({ workItems = [] }: UseFiltersProps): UseFiltersRetur
       
       return [...prev, filter];
     });
-  };
+  }, []);
 
-  const removeFilter = (filterId: string) => {
+  const removeFilter = useCallback((filterId: string) => {
     setActiveFilters(prev => prev.filter(f => f.id !== filterId));
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setActiveFilters([]);
-  };
+  }, []);
 
   // Build hierarchical structure with filtering
   const filteredWorkItems = useMemo((): WorkItemWithChildren[] => {

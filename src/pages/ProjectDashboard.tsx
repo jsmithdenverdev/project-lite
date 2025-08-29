@@ -38,14 +38,17 @@ export default function ProjectDashboard() {
     isLoading
   } = multiProjectState;
 
-  // Use filters hook for filtering logic
+  // Use filters hook for filtering logic with project ID for persistence
   const {
     filterState,
     addFilter,
     removeFilter,
     clearAllFilters,
     filteredWorkItems
-  } = useFilters({ workItems: currentProjectData?.workItems || [] });
+  } = useFilters({ 
+    workItems: currentProjectData?.workItems || [],
+    projectId: activeProjectId 
+  });
 
   // Show initial modal when there's no active project and loading is complete
   useEffect(() => {
