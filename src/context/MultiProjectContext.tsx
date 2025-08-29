@@ -197,13 +197,9 @@ export function MultiProjectProvider({ children }: { children: ReactNode }) {
         // Update local state
         dispatch({ type: 'SET_ACTIVE_PROJECT', payload: { id: projectId, data: projectData } });
         
-        // Update projects list to reflect active status
-        const updatedProjects = state.projects.map(p => ({
-          ...p,
-          isActive: p.id === projectId,
-          lastAccessed: p.id === projectId ? new Date().toISOString() : p.lastAccessed
-        }));
-        dispatch({ type: 'SET_PROJECTS', payload: updatedProjects });
+        // Reload projects list to ensure we have the latest data
+        const allProjects = await indexedDBService.getAllProjects();
+        dispatch({ type: 'SET_PROJECTS', payload: allProjects });
       } catch (error) {
         console.error('Failed to switch project:', error);
         dispatch({ type: 'SET_ERROR', payload: 'Failed to switch project' });

@@ -15,9 +15,7 @@ export function ProjectSelector({ className = '' }: ProjectSelectorProps) {
     currentProjectData,
     isLoading,
     switchProject,
-    deleteProject,
-    saveToMultiProject,
-    hasUnsavedChanges
+    deleteProject
   } = useCurrentProject();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -36,11 +34,6 @@ export function ProjectSelector({ className = '' }: ProjectSelectorProps) {
     }
 
     try {
-      // Save current project if there are unsaved changes
-      if (hasUnsavedChanges && currentProjectData) {
-        await saveToMultiProject(currentProjectData);
-      }
-      
       await switchProject(projectId);
       setIsOpen(false);
     } catch (error) {
@@ -147,9 +140,6 @@ export function ProjectSelector({ className = '' }: ProjectSelectorProps) {
             <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
               {activeProject ? activeProject.name : 'Select Project'}
             </span>
-            {hasUnsavedChanges && (
-              <span className="text-orange-500 text-xs">●</span>
-            )}
           </div>
           <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
