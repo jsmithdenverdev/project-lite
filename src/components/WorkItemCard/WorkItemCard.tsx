@@ -47,6 +47,11 @@ export default function WorkItemCard({
   }
   
   const marginLeft = depth * 24;
+  
+  // Use editData when editing, otherwise use original item
+  const displayData = isEditing && _editData ? _editData : item;
+  const displayTags = displayData.tags || [];
+  const displayAcceptanceCriteria = displayData.acceptanceCriteria || [];
 
   return (
     <>
@@ -171,13 +176,16 @@ export default function WorkItemCard({
               {/* Tags with interactive management */}
               <div className="mt-3">
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {item.tags && item.tags.length > 0 && item.tags.map((tag, index) => (
+                  {displayTags.length > 0 && displayTags.map((tag, index) => (
                     <div key={index} className="flex items-center space-x-1">
                       <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs">
                         {tag}
                       </span>
                       <button
-                        onClick={() => _onRemoveTag(index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          _onRemoveTag(index);
+                        }}
                         className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                         type="button"
                         title="Remove tag"
@@ -192,13 +200,13 @@ export default function WorkItemCard({
 
               {/* Acceptance Criteria with interactive management */}
               <div className="mt-3">
-                {item.acceptanceCriteria && item.acceptanceCriteria.length > 0 && (
+                {displayAcceptanceCriteria.length > 0 && (
                   <div className="mb-3">
                     <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Acceptance Criteria ({item.acceptanceCriteria.filter(ac => ac.completed).length}/{item.acceptanceCriteria.length})
+                      Acceptance Criteria ({displayAcceptanceCriteria.filter(ac => ac.completed).length}/{displayAcceptanceCriteria.length})
                     </h4>
                     <div className="space-y-2">
-                      {item.acceptanceCriteria.map((ac, index) => (
+                      {displayAcceptanceCriteria.map((ac, index) => (
                         <div key={ac.id || index} className="flex items-start space-x-2 text-xs">
                           <input
                             type="checkbox"
@@ -216,7 +224,10 @@ export default function WorkItemCard({
                             {ac.description}
                           </span>
                           <button
-                            onClick={() => _onRemoveAcceptanceCriteria(index)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              _onRemoveAcceptanceCriteria(index);
+                            }}
                             className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
                             type="button"
                             title="Remove acceptance criteria"
@@ -313,13 +324,16 @@ export default function WorkItemCard({
                 {/* Tags with interactive management */}
                 <div className="mt-3">
                   <div className="flex flex-wrap gap-1 mb-2">
-                    {item.tags && item.tags.length > 0 && item.tags.map((tag, index) => (
+                    {displayTags.length > 0 && displayTags.map((tag, index) => (
                       <div key={index} className="flex items-center space-x-1">
                         <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs">
                           {tag}
                         </span>
                         <button
-                          onClick={() => _onRemoveTag(index)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            _onRemoveTag(index);
+                          }}
                           className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                           type="button"
                           title="Remove tag"
@@ -334,13 +348,13 @@ export default function WorkItemCard({
 
                 {/* Acceptance Criteria with interactive management */}
                 <div className="mt-3">
-                  {item.acceptanceCriteria && item.acceptanceCriteria.length > 0 && (
+                  {displayAcceptanceCriteria.length > 0 && (
                     <div className="mb-3">
                       <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Acceptance Criteria ({item.acceptanceCriteria.filter(ac => ac.completed).length}/{item.acceptanceCriteria.length})
+                        Acceptance Criteria ({displayAcceptanceCriteria.filter(ac => ac.completed).length}/{displayAcceptanceCriteria.length})
                       </h4>
                       <div className="space-y-2">
-                        {item.acceptanceCriteria.map((ac, index) => (
+                        {displayAcceptanceCriteria.map((ac, index) => (
                           <div key={ac.id || index} className="flex items-start space-x-2 text-xs">
                             <input
                               type="checkbox"
@@ -358,7 +372,10 @@ export default function WorkItemCard({
                               {ac.description}
                             </span>
                             <button
-                              onClick={() => _onRemoveAcceptanceCriteria(index)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                _onRemoveAcceptanceCriteria(index);
+                              }}
                               className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
                               type="button"
                               title="Remove acceptance criteria"

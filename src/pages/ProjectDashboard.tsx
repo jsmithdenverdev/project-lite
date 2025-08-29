@@ -187,39 +187,142 @@ export default function ProjectDashboard() {
     }));
   };
 
-  const handleAddTag = (itemId: string, tag: string) => {
-    const currentTags = editFormData[itemId]?.tags || [];
-    if (!currentTags.includes(tag)) {
-      handleUpdateField(itemId, 'tags', [...currentTags, tag]);
-    }
+  const handleAddTag = async (itemId: string, tag: string) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentTags = item.tags || [];
+        if (!currentTags.includes(tag)) {
+          return {
+            ...item,
+            tags: [...currentTags, tag]
+          };
+        }
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleRemoveTag = (itemId: string, tagIndex: number) => {
-    const currentTags = editFormData[itemId]?.tags || [];
-    handleUpdateField(itemId, 'tags', currentTags.filter((_, i) => i !== tagIndex));
+  const handleRemoveTag = async (itemId: string, tagIndex: number) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentTags = item.tags || [];
+        return {
+          ...item,
+          tags: currentTags.filter((_, i) => i !== tagIndex)
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleAddAcceptanceCriteria = (itemId: string) => {
-    const currentCriteria = editFormData[itemId]?.acceptanceCriteria || [];
-    handleUpdateField(itemId, 'acceptanceCriteria', [
-      ...currentCriteria,
-      { id: crypto.randomUUID(), text: '', completed: false }
-    ]);
+  const handleAddAcceptanceCriteria = async (itemId: string, description: string) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        return {
+          ...item,
+          acceptanceCriteria: [
+            ...currentCriteria,
+            { id: crypto.randomUUID(), description: description, completed: false }
+          ]
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleRemoveAcceptanceCriteria = (itemId: string, criteriaIndex: number) => {
-    const currentCriteria = editFormData[itemId]?.acceptanceCriteria || [];
-    handleUpdateField(itemId, 'acceptanceCriteria', 
-      currentCriteria.filter((_, i) => i !== criteriaIndex)
-    );
+  const handleRemoveAcceptanceCriteria = async (itemId: string, criteriaIndex: number) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        return {
+          ...item,
+          acceptanceCriteria: currentCriteria.filter((_, i) => i !== criteriaIndex)
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleToggleAcceptanceCriteria = (itemId: string, criteriaIndex: number) => {
-    const currentCriteria = editFormData[itemId]?.acceptanceCriteria || [];
-    const updatedCriteria = currentCriteria.map((criteria, i) =>
-      i === criteriaIndex ? { ...criteria, completed: !criteria.completed } : criteria
-    );
-    handleUpdateField(itemId, 'acceptanceCriteria', updatedCriteria);
+  const handleToggleAcceptanceCriteria = async (itemId: string, criteriaIndex: number, completed: boolean) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        const updatedCriteria = currentCriteria.map((criteria, i) =>
+          i === criteriaIndex ? { ...criteria, completed: completed } : criteria
+        );
+        return {
+          ...item,
+          acceptanceCriteria: updatedCriteria
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
   // Loading state
