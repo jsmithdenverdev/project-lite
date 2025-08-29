@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { FolderOpen, Upload, Plus, Sparkles } from 'lucide-react';
 import { Modal } from '../Modal';
 import { ProjectSelector } from '../ProjectSelector';
 import { NewProjectModal } from '../NewProjectModal';
-import ProjectImportModal from '../ProjectImportModal';
 import { useCurrentProject } from '../../hooks/useCurrentProject';
-import type { ProjectData } from '../../schemas';
+import { ProjectDataSchema, type ProjectData } from '../../schemas';
 
 interface InitialProjectModalProps {
   isOpen: boolean;
@@ -16,7 +15,8 @@ interface InitialProjectModalProps {
 export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProps) {
   const { projects, createAndLoadProject } = useCurrentProject();
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [error, setError] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasExistingProjects = projects.length > 0;
 
@@ -24,23 +24,43 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
     setShowNewProjectModal(true);
   };
 
-  const handleImport = () => {
-    setShowImportModal(true);
+  const handleImportClick = () => {
+    setError('');
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const rawData = JSON.parse(content);
+      const validationResult = ProjectDataSchema.safeParse(rawData);
+      
+      if (!validationResult.success) {
+        const errorMessages = validationResult.error.issues.map(
+          (err) => `${err.path.join('.')}: ${err.message}`
+        ).join('\n');
+        setError(`Schema validation failed:\n${errorMessages}`);
+        return;
+      }
+      
+      await createAndLoadProject(validationResult.data, file.name);
+      onClose();
+    } catch (e) {
+      setError(`Invalid JSON format: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    } finally {
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleProjectCreated = () => {
     setShowNewProjectModal(false);
     onClose();
-  };
-
-  const handleProjectImported = async (data: ProjectData, filename: string) => {
-    try {
-      await createAndLoadProject(data, filename);
-      setShowImportModal(false);
-      onClose();
-    } catch (error) {
-      console.error('Failed to import project:', error);
-    }
   };
 
 
@@ -55,6 +75,22 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
         size="lg"
       >
         <div className="space-y-8">
+          {/* Hidden file input for import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+
+          {/* Error Display */}
+          {error && (
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Import Error</h4>
+              <pre className="text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap overflow-x-auto">{error}</pre>
+            </div>
+          )}
           {/* Welcome Message */}
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -141,7 +177,7 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
                 </div>
               </div>
               <button
-                onClick={handleImport}
+                onClick={handleImportClick}
                 className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 type="button"
               >
@@ -180,13 +216,6 @@ export function InitialProjectModal({ isOpen, onClose }: InitialProjectModalProp
         onClose={() => setShowNewProjectModal(false)}
         onProjectCreated={handleProjectCreated}
       />
-
-      <ProjectImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onProjectLoaded={handleProjectImported}
-      />
-
     </>
   );
 }
