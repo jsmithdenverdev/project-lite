@@ -26,6 +26,7 @@ export default function ProjectDashboard() {
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
   const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
   const [isEditingProject, setIsEditingProject] = useState(false);
+  const [projectEditData, setProjectEditData] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [childrenToDelete, setChildrenToDelete] = useState<WorkItem[]>([]);
@@ -537,16 +538,38 @@ export default function ProjectDashboard() {
               completedWorkItems: currentProjectData.workItems.filter(item => item.status === 'done').length,
             }}
             isEditing={isEditingProject}
-            editData={currentProjectData.project}
-            onEdit={() => setIsEditingProject(true)}
-            onSave={async () => {
-              await multiProjectActions.updateCurrentProject(currentProjectData);
-              setIsEditingProject(false);
+            editData={projectEditData || currentProjectData.project}
+            onEdit={() => {
+              setIsEditingProject(true);
+              setProjectEditData({...currentProjectData.project});
             }}
-            onCancel={() => setIsEditingProject(false)}
+            onSave={async () => {
+              if (!currentProjectData || !projectEditData) return;
+              
+              const updatedProjectData = {
+                ...currentProjectData,
+                project: projectEditData,
+                metadata: {
+                  ...currentProjectData.metadata,
+                  lastUpdated: new Date().toISOString()
+                }
+              };
+              
+              await multiProjectActions.updateCurrentProject(updatedProjectData);
+              setIsEditingProject(false);
+              setProjectEditData(null);
+            }}
+            onCancel={() => {
+              setIsEditingProject(false);
+              setProjectEditData(null);
+            }}
             onUpdateField={(field: string, value: any) => {
-              // Update project field logic would go here
-              console.log('Project field update:', field, value);
+              if (!projectEditData) return;
+              
+              setProjectEditData({
+                ...projectEditData,
+                [field]: value
+              });
             }}
           />
         </div>
