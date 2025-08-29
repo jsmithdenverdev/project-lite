@@ -9,7 +9,8 @@ import {
   Clock, 
   User, 
   Target,
-  Minus
+  Minus,
+  Plus
 } from 'lucide-react';
 import { StatusBadge } from '../StatusBadge';
 import { TypeIcon } from '../TypeIcon';
@@ -36,6 +37,7 @@ export default function WorkItemCard({
   onAddAcceptanceCriteria: _onAddAcceptanceCriteria,
   onRemoveAcceptanceCriteria: _onRemoveAcceptanceCriteria,
   onToggleAcceptanceCriteria: _onToggleAcceptanceCriteria,
+  onAddChild,
 }: WorkItemCardProps) {
   // Defensive checks to prevent crashes
   if (!item || !item.id || !item.title) {
@@ -87,6 +89,19 @@ export default function WorkItemCard({
             <StatusBadge status={item.status} size="sm" />
           </div>
           <div className="flex items-center space-x-2">
+            {!isEditing && onAddChild && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddChild();
+                }}
+                className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                type="button"
+                title="Add child item"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={onToggleEdit}
               className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
@@ -395,6 +410,19 @@ export default function WorkItemCard({
         </div>
         
         <div className="flex items-center space-x-2 ml-4">
+          {!isEditing && onAddChild && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddChild();
+              }}
+              className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-500 dark:hover:text-blue-400 transition-colors"
+              type="button"
+              title="Add child item"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={onToggleEdit}
             className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"

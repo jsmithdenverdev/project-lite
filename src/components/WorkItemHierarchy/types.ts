@@ -21,4 +21,5 @@ export interface WorkItemHierarchyProps {
   onAddAcceptanceCriteria: (itemId: string, description: string) => void;
   onRemoveAcceptanceCriteria: (itemId: string, criteriaIndex: number) => void;
   onToggleAcceptanceCriteria: (itemId: string, criteriaIndex: number, completed: boolean) => void;
+  onAddChild?: (parentId: string) => void;
 }

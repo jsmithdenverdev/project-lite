@@ -7,6 +7,7 @@ export default function CreateWorkItemForm({
   onUpdateField,
   onSave,
   onCancel,
+  hideParentSelector = false,
 }: CreateWorkItemFormProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
@@ -111,25 +112,27 @@ export default function CreateWorkItemForm({
         </div>
 
         {/* Parent */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Parent Item
-          </label>
-          <select
-            value={newItemData.parentId || ''}
-            onChange={(e) => onUpdateField('parentId', e.target.value || undefined)}
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          >
-            <option value="">No Parent</option>
-            {availableParents
-              .filter(parent => parent.id !== newItemData.id)
-              .map(parent => (
-                <option key={parent.id} value={parent.id}>
-                  {parent.title} ({parent.type})
-                </option>
-              ))}
-          </select>
-        </div>
+        {!hideParentSelector && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Parent Item
+            </label>
+            <select
+              value={newItemData.parentId || ''}
+              onChange={(e) => onUpdateField('parentId', e.target.value || undefined)}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="">No Parent</option>
+              {availableParents
+                .filter(parent => parent.id !== newItemData.id)
+                .map(parent => (
+                  <option key={parent.id} value={parent.id}>
+                    {parent.title} ({parent.type})
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
 
         {/* Assignee */}
         <div>

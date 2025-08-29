@@ -6,4 +6,5 @@ export interface CreateWorkItemFormProps {
   onUpdateField: (field: keyof WorkItem, value: WorkItem[keyof WorkItem]) => void;
   onSave: () => void;
   onCancel: () => void;
+  hideParentSelector?: boolean;
 }
