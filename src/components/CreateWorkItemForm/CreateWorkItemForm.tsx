@@ -2,8 +2,23 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Plus } from 'lucide-react';
-import { FormCreateWorkItemSchema, type CreateWorkItemFormData } from '../../schemas';
+import { z } from 'zod';
+import { WorkItemTypeSchema, WorkItemStatusSchema, PrioritySchema } from '../../schemas';
 import type { CreateWorkItemFormProps } from './types';
+
+// Simple form schema for this component
+const CreateItemFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: WorkItemTypeSchema.optional(),
+  status: WorkItemStatusSchema.optional(),
+  priority: PrioritySchema.optional(),
+  parentId: z.string().optional(),
+  assignee: z.string().optional(),
+  dueDate: z.string().optional(),
+});
+
+type CreateItemFormData = z.infer<typeof CreateItemFormSchema>;
 
 export default function CreateWorkItemForm({
   newItemData,
@@ -18,9 +33,10 @@ export default function CreateWorkItemForm({
     register,
     handleSubmit,
     watch,
-    formState: { errors, isValid }
-  } = useForm<CreateWorkItemFormData>({
-    resolver: zodResolver(FormCreateWorkItemSchema),
+    getValues,
+    formState: { errors, touchedFields }
+  } = useForm<CreateItemFormData>({
+    resolver: zodResolver(CreateItemFormSchema),
     defaultValues: {
       title: newItemData.title || '',
       description: newItemData.description || '',
@@ -31,7 +47,7 @@ export default function CreateWorkItemForm({
       assignee: newItemData.assignee || '',
       dueDate: newItemData.dueDate || '',
     },
-    mode: 'onChange',
+    mode: 'all', // Validate on both blur and change
   });
 
   // Sync form data back to parent component
@@ -78,7 +94,8 @@ export default function CreateWorkItemForm({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                if (isValid) {
+                const values = getValues();
+                if (values.title?.trim()) {
                   handleFormSubmit();
                 }
               }
@@ -194,7 +211,8 @@ export default function CreateWorkItemForm({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                if (isValid) {
+                const values = getValues();
+                if (values.title?.trim()) {
                   handleFormSubmit();
                 }
               }
@@ -228,7 +246,7 @@ export default function CreateWorkItemForm({
         </button>
         <button
           onClick={handleFormSubmit}
-          disabled={!isValid}
+          disabled={!watch('title')?.trim()}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
           type="button"
         >
