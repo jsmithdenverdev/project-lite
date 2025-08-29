@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, X, Upload, FileText } from 'lucide-react';
 import { Modal } from '../Modal';
 import { useCurrentProject } from '../../hooks/useCurrentProject';
-import { ProjectDataSchema, type ProjectData, type Project, type WorkItemStatus, type Priority } from '../../schemas';
+import { ProjectDataSchema, NewProjectFormSchema, type ProjectData, type Project, type NewProjectFormData } from '../../schemas';
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -18,44 +20,46 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
   const [error, setError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    type: 'software' as const,
-    status: 'backlog' as WorkItemStatus,
-    priority: 'medium' as Priority,
-    owner: '',
-    targetDate: '',
-    tags: [] as string[],
-    tagInput: ''
+  // Form management with react-hook-form
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors, isValid }
+  } = useForm<NewProjectFormData>({
+    resolver: zodResolver(NewProjectFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      type: 'software',
+      status: 'backlog',
+      priority: 'medium',
+      owner: '',
+      targetDate: '',
+      tags: [],
+      tagInput: '',
+    },
+    mode: 'onChange',
   });
 
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const watchedTags = watch('tags') || [];
+  const watchedTagInput = watch('tagInput') || '';
 
   const handleAddTag = () => {
-    const tag = formData.tagInput.trim();
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag],
-        tagInput: ''
-      }));
+    const tag = watchedTagInput.trim();
+    if (tag && !watchedTags.includes(tag)) {
+      setValue('tags', [...watchedTags, tag]);
+      setValue('tagInput', '');
     }
   };
 
   const handleRemoveTag = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter((_, i) => i !== index)
-    }));
+    setValue('tags', watchedTags.filter((_, i) => i !== index));
   };
 
-  const handleCreateProject = async () => {
-    if (!formData.name.trim()) return;
-
+  const handleCreateProject = handleSubmit(async (formData) => {
     setIsCreating(true);
     try {
       const now = new Date().toISOString();
@@ -64,14 +68,14 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
       const project: Project = {
         id: projectId,
         name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
+        description: formData.description?.trim() || undefined,
         type: formData.type,
         status: formData.status,
         priority: formData.priority,
         createdDate: now,
         targetDate: formData.targetDate || undefined,
-        owner: formData.owner.trim() || undefined,
-        tags: formData.tags.length > 0 ? formData.tags : undefined,
+        owner: formData.owner?.trim() || undefined,
+        tags: formData.tags && formData.tags.length > 0 ? formData.tags : undefined,
       };
 
       const projectData: ProjectData = {
@@ -92,23 +96,13 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
       onClose();
       
       // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        type: 'software',
-        status: 'backlog',
-        priority: 'medium',
-        owner: '',
-        targetDate: '',
-        tags: [],
-        tagInput: ''
-      });
+      reset();
     } catch (error) {
       console.error('Failed to create project:', error);
     } finally {
       setIsCreating(false);
     }
-  };
+  });
 
   const handleImportClick = () => {
     setError('');
@@ -146,17 +140,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
   };
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      type: 'software',
-      status: 'backlog',
-      priority: 'medium',
-      owner: '',
-      targetDate: '',
-      tags: [],
-      tagInput: ''
-    });
+    reset();
     setActiveTab('create');
     setError('');
   };
@@ -232,20 +216,24 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  {...register('name')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      if (formData.name.trim() && !isCreating) {
+                      if (isValid && !isCreating) {
                         handleCreateProject();
                       }
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.name ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                   placeholder="Enter project name"
                   autoFocus
                 />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>
+                )}
               </div>
 
               {/* Description */}
@@ -254,8 +242,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                   Description
                 </label>
                 <textarea
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  {...register('description')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                   placeholder="Describe your project"
@@ -269,8 +256,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                     Type
                   </label>
                   <select
-                    value={formData.type}
-                    onChange={(e) => handleInputChange('type', e.target.value)}
+                    {...register('type')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="software">Software</option>
@@ -288,8 +274,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                     Status
                   </label>
                   <select
-                    value={formData.status}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
+                    {...register('status')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="backlog">Backlog</option>
@@ -309,8 +294,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                     Priority
                   </label>
                   <select
-                    value={formData.priority}
-                    onChange={(e) => handleInputChange('priority', e.target.value)}
+                    {...register('priority')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="low">Low</option>
@@ -329,12 +313,11 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                   </label>
                   <input
                     type="text"
-                    value={formData.owner}
-                    onChange={(e) => handleInputChange('owner', e.target.value)}
+                    {...register('owner')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        if (formData.name.trim() && !isCreating) {
+                        if (isValid && !isCreating) {
                           handleCreateProject();
                         }
                       }
@@ -351,8 +334,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                   </label>
                   <input
                     type="date"
-                    value={formData.targetDate}
-                    onChange={(e) => handleInputChange('targetDate', e.target.value)}
+                    {...register('targetDate')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -367,8 +349,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                   <div className="flex space-x-2">
                     <input
                       type="text"
-                      value={formData.tagInput}
-                      onChange={(e) => handleInputChange('tagInput', e.target.value)}
+                      {...register('tagInput')}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -387,9 +368,9 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
                     </button>
                   </div>
                   
-                  {formData.tags.length > 0 && (
+                  {watchedTags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {formData.tags.map((tag, index) => (
+                      {watchedTags.map((tag, index) => (
                         <div
                           key={index}
                           className="flex items-center space-x-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
@@ -441,7 +422,7 @@ export function NewProjectModal({ isOpen, onClose, onProjectCreated }: NewProjec
             {activeTab === 'create' && (
               <button
                 onClick={handleCreateProject}
-                disabled={!formData.name.trim() || isCreating}
+                disabled={!isValid || isCreating}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 type="button"
               >

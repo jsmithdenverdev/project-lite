@@ -1,7 +1,48 @@
-import type { StatusType, PriorityType, EstimatedEffort } from '../../schemas';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { EditProjectFormSchema, type EditProjectFormData } from '../../schemas';
 import type { ProjectCardEditProps } from './types';
 
 export default function ProjectCardEdit({ editData, onUpdateField, onSave }: ProjectCardEditProps) {
+  // Form management with react-hook-form
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isValid }
+  } = useForm<EditProjectFormData>({
+    resolver: zodResolver(EditProjectFormSchema),
+    defaultValues: {
+      name: editData.name || '',
+      description: editData.description || '',
+      type: editData.type || 'software',
+      status: editData.status || 'backlog',
+      priority: editData.priority || 'medium',
+      estimatedEffort: editData.estimatedEffort || { value: 0, unit: 'hours' },
+    },
+    mode: 'onChange',
+  });
+
+  // Sync form data back to parent component
+  useEffect(() => {
+    const subscription = watch((value) => {
+      // Update each field that changed
+      Object.entries(value).forEach(([field, fieldValue]) => {
+        if (fieldValue !== editData[field as keyof typeof editData]) {
+          onUpdateField(field as keyof typeof editData, fieldValue);
+        }
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onUpdateField, editData]);
+
+  const handleFormSubmit = handleSubmit(() => {
+    if (onSave) {
+      onSave();
+    }
+  });
+
   return (
     <div className="flex-1 space-y-4">
       {/* Project Name */}
@@ -11,18 +52,22 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
         </label>
         <input
           type="text"
-          value={editData.name || ""}
-          onChange={(e) => onUpdateField("name", e.target.value)}
+          {...register("name")}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              if (editData.name?.trim() && onSave) {
-                onSave();
+              if (isValid && onSave) {
+                handleFormSubmit();
               }
             }
           }}
-          className="w-full text-lg font-bold p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          className={`w-full text-lg font-bold p-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+            errors.name ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+          }`}
         />
+        {errors.name && (
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name.message}</p>
+        )}
       </div>
       
       {/* Project Description */}
@@ -31,8 +76,7 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
           Description
         </label>
         <textarea
-          value={editData.description || ""}
-          onChange={(e) => onUpdateField("description", e.target.value)}
+          {...register("description")}
           rows={2}
           className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
         />
@@ -45,8 +89,7 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
             Status
           </label>
           <select
-            value={editData.status || "backlog"}
-            onChange={(e) => onUpdateField("status", e.target.value as StatusType)}
+            {...register("status")}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="backlog">Backlog</option>
@@ -66,8 +109,7 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
             Priority
           </label>
           <select
-            value={editData.priority || "medium"}
-            onChange={(e) => onUpdateField("priority", e.target.value as PriorityType)}
+            {...register("priority")}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="low">Low</option>
@@ -84,8 +126,7 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
           Project Type
         </label>
         <select
-          value={editData.type || "software"}
-          onChange={(e) => onUpdateField("type", e.target.value)}
+          {...register("type")}
           className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         >
           <option value="software">Software</option>
@@ -107,22 +148,12 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave }: Pro
             type="number"
             min="0"
             step="0.5"
-            value={editData.estimatedEffort?.value || ""}
-            onChange={(e) => onUpdateField("estimatedEffort", {
-              unit: "hours", // Default unit
-              ...editData.estimatedEffort, // Preserve existing unit if available
-              value: parseFloat(e.target.value) || 0
-            })}
+            {...register("estimatedEffort.value", { valueAsNumber: true })}
             placeholder="Value"
             className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
           <select
-            value={editData.estimatedEffort?.unit || "hours"}
-            onChange={(e) => onUpdateField("estimatedEffort", {
-              value: 0, // Default value
-              ...editData.estimatedEffort, // Preserve existing value if available
-              unit: e.target.value as EstimatedEffort["unit"]
-            })}
+            {...register("estimatedEffort.unit")}
             className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="hours">Hours</option>

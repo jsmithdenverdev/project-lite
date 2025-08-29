@@ -13,11 +13,14 @@ export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
     lg: 'px-4 py-2 text-base',
   };
 
+  // Default to 'backlog' if status is undefined or null
+  const displayStatus = status || 'backlog';
+
   return (
     <span
-      className={`rounded-full font-medium ${getStatusColor(status)} ${sizeClasses[size]}`}
+      className={`rounded-full font-medium ${getStatusColor(displayStatus)} ${sizeClasses[size]}`}
     >
-      {status.replace('_', ' ')}
+      {displayStatus.replace('_', ' ')}
     </span>
   );
 }

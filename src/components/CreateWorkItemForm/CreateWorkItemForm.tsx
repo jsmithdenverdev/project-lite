@@ -1,5 +1,24 @@
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Plus } from 'lucide-react';
+import { z } from 'zod';
+import { WorkItemTypeSchema, WorkItemStatusSchema, PrioritySchema } from '../../schemas';
 import type { CreateWorkItemFormProps } from './types';
+
+// Simple form schema for this component
+const CreateItemFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: WorkItemTypeSchema.optional(),
+  status: WorkItemStatusSchema.optional(),
+  priority: PrioritySchema.optional(),
+  parentId: z.string().optional(),
+  assignee: z.string().optional(),
+  dueDate: z.string().optional(),
+});
+
+type CreateItemFormData = z.infer<typeof CreateItemFormSchema>;
 
 export default function CreateWorkItemForm({
   newItemData,
@@ -9,6 +28,45 @@ export default function CreateWorkItemForm({
   onCancel,
   hideParentSelector = false,
 }: CreateWorkItemFormProps) {
+  // Form management with react-hook-form
+  const {
+    register,
+    handleSubmit,
+    watch,
+    getValues,
+    formState: { errors, touchedFields }
+  } = useForm<CreateItemFormData>({
+    resolver: zodResolver(CreateItemFormSchema),
+    defaultValues: {
+      title: newItemData.title || '',
+      description: newItemData.description || '',
+      type: newItemData.type || 'task',
+      status: newItemData.status || 'backlog',
+      priority: newItemData.priority || 'medium',
+      parentId: newItemData.parentId || '',
+      assignee: newItemData.assignee || '',
+      dueDate: newItemData.dueDate || '',
+    },
+    mode: 'all', // Validate on both blur and change
+  });
+
+  // Sync form data back to parent component
+  useEffect(() => {
+    const subscription = watch((value) => {
+      // Update each field that changed
+      Object.entries(value).forEach(([field, fieldValue]) => {
+        if (fieldValue !== newItemData[field as keyof typeof newItemData]) {
+          onUpdateField(field as keyof typeof newItemData, fieldValue);
+        }
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onUpdateField, newItemData]);
+
+  const handleFormSubmit = handleSubmit(() => {
+    onSave();
+  });
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
       <div className="flex items-center justify-between mb-4">
@@ -32,20 +90,25 @@ export default function CreateWorkItemForm({
           </label>
           <input
             type="text"
-            value={newItemData.title || ''}
-            onChange={(e) => onUpdateField('title', e.target.value)}
+            {...register('title')}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                if (newItemData.title?.trim()) {
-                  onSave();
+                const values = getValues();
+                if (values.title?.trim()) {
+                  handleFormSubmit();
                 }
               }
             }}
             placeholder="Enter work item title..."
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            className={`w-full p-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+              errors.title ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+            }`}
             autoFocus
           />
+          {errors.title && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title.message}</p>
+          )}
         </div>
 
         {/* Description */}
@@ -54,8 +117,7 @@ export default function CreateWorkItemForm({
             Description
           </label>
           <textarea
-            value={newItemData.description || ''}
-            onChange={(e) => onUpdateField('description', e.target.value)}
+            {...register('description')}
             placeholder="Enter description..."
             rows={3}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
@@ -68,8 +130,7 @@ export default function CreateWorkItemForm({
             Type
           </label>
           <select
-            value={newItemData.type || 'task'}
-            onChange={(e) => onUpdateField('type', e.target.value)}
+            {...register('type')}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="epic">Epic</option>
@@ -88,14 +149,13 @@ export default function CreateWorkItemForm({
             Status
           </label>
           <select
-            value={newItemData.status || 'backlog'}
-            onChange={(e) => onUpdateField('status', e.target.value)}
+            {...register('status')}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="backlog">Backlog</option>
             <option value="todo">To Do</option>
             <option value="in_progress">In Progress</option>
-            <option value="in_review">In Review</option>
+            <option value="review">Review</option>
             <option value="testing">Testing</option>
             <option value="done">Done</option>
             <option value="cancelled">Cancelled</option>
@@ -108,8 +168,7 @@ export default function CreateWorkItemForm({
             Priority
           </label>
           <select
-            value={newItemData.priority || 'medium'}
-            onChange={(e) => onUpdateField('priority', e.target.value)}
+            {...register('priority')}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="critical">Critical</option>
@@ -126,8 +185,7 @@ export default function CreateWorkItemForm({
               Parent Item
             </label>
             <select
-              value={newItemData.parentId || ''}
-              onChange={(e) => onUpdateField('parentId', e.target.value || undefined)}
+              {...register('parentId')}
               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="">No Parent</option>
@@ -149,13 +207,13 @@ export default function CreateWorkItemForm({
           </label>
           <input
             type="text"
-            value={newItemData.assignee || ''}
-            onChange={(e) => onUpdateField('assignee', e.target.value)}
+            {...register('assignee')}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                if (newItemData.title?.trim()) {
-                  onSave();
+                const values = getValues();
+                if (values.title?.trim()) {
+                  handleFormSubmit();
                 }
               }
             }}
@@ -171,8 +229,7 @@ export default function CreateWorkItemForm({
           </label>
           <input
             type="date"
-            value={newItemData.dueDate ? new Date(newItemData.dueDate).toISOString().split('T')[0] : ''}
-            onChange={(e) => onUpdateField('dueDate', e.target.value ? new Date(e.target.value).toISOString() : '')}
+            {...register('dueDate')}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
         </div>
@@ -188,8 +245,8 @@ export default function CreateWorkItemForm({
           Cancel
         </button>
         <button
-          onClick={onSave}
-          disabled={!newItemData.title?.trim()}
+          onClick={handleFormSubmit}
+          disabled={!watch('title')?.trim()}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
           type="button"
         >
