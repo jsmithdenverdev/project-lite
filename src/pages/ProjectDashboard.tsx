@@ -7,6 +7,8 @@ import { ProjectSelector } from '../components/ProjectSelector';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { InitialProjectModal } from '../components/InitialProjectModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { FilterBar } from '../components/FilterBar';
+import { useFilters } from '../hooks/useFilters';
 import { useMultiProject } from '../context/MultiProjectContext';
 import type { WorkItem, WorkItemStatus, Priority } from '../schemas';
 
@@ -24,6 +26,7 @@ export default function ProjectDashboard() {
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
   const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
   const [isEditingProject, setIsEditingProject] = useState(false);
+  const [projectEditData, setProjectEditData] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [childrenToDelete, setChildrenToDelete] = useState<WorkItem[]>([]);
@@ -35,6 +38,18 @@ export default function ProjectDashboard() {
     currentProjectData,
     isLoading
   } = multiProjectState;
+
+  // Use filters hook for filtering logic with project ID for persistence
+  const {
+    filterState,
+    addFilter,
+    removeFilter,
+    clearAllFilters,
+    filteredWorkItems
+  } = useFilters({ 
+    workItems: currentProjectData?.workItems || [],
+    projectId: activeProjectId 
+  });
 
   // Show initial modal when there's no active project and loading is complete
   useEffect(() => {
@@ -523,16 +538,38 @@ export default function ProjectDashboard() {
               completedWorkItems: currentProjectData.workItems.filter(item => item.status === 'done').length,
             }}
             isEditing={isEditingProject}
-            editData={currentProjectData.project}
-            onEdit={() => setIsEditingProject(true)}
-            onSave={async () => {
-              await multiProjectActions.updateCurrentProject(currentProjectData);
-              setIsEditingProject(false);
+            editData={projectEditData || currentProjectData.project}
+            onEdit={() => {
+              setIsEditingProject(true);
+              setProjectEditData({...currentProjectData.project});
             }}
-            onCancel={() => setIsEditingProject(false)}
+            onSave={async () => {
+              if (!currentProjectData || !projectEditData) return;
+              
+              const updatedProjectData = {
+                ...currentProjectData,
+                project: projectEditData,
+                metadata: {
+                  ...currentProjectData.metadata,
+                  lastUpdated: new Date().toISOString()
+                }
+              };
+              
+              await multiProjectActions.updateCurrentProject(updatedProjectData);
+              setIsEditingProject(false);
+              setProjectEditData(null);
+            }}
+            onCancel={() => {
+              setIsEditingProject(false);
+              setProjectEditData(null);
+            }}
             onUpdateField={(field: string, value: any) => {
-              // Update project field logic would go here
-              console.log('Project field update:', field, value);
+              if (!projectEditData) return;
+              
+              setProjectEditData({
+                ...projectEditData,
+                [field]: value
+              });
             }}
           />
         </div>
@@ -551,6 +588,15 @@ export default function ProjectDashboard() {
               <span>Add Work Item</span>
             </button>
           </div>
+
+          {/* Filters */}
+          <FilterBar
+            activeFilters={filterState.activeFilters}
+            availableFilters={filterState.availableFilters}
+            onAddFilter={addFilter}
+            onRemoveFilter={removeFilter}
+            onClearAllFilters={clearAllFilters}
+          />
 
           {/* Create New Item Form */}
           {isCreatingNewItem && (
@@ -588,10 +634,11 @@ export default function ProjectDashboard() {
 
           {/* Work Items Hierarchy */}
           <WorkItemHierarchy
-            workItems={currentProjectData.workItems}
+            workItems={filteredWorkItems}
             expandedItems={expandedItems}
             editingItems={editingItems}
             editFormData={editFormData}
+            availableParents={currentProjectData.workItems}
             onToggleExpanded={handleToggleExpanded}
             onToggleEdit={handleToggleEdit}
             onSaveItem={handleSaveItem}

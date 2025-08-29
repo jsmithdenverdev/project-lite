@@ -20,6 +20,7 @@ import {
   Plus,
   Minus,
   Trash2,
+  Filter,
 } from "lucide-react";
 import {
   ProjectDataSchema,
@@ -32,6 +33,11 @@ import {
   type EstimatedEffort,
 } from "./schemas";
 import { ProjectImportModal } from "./components";
+import { 
+  buildFilteredWorkItemHierarchy, 
+  type WorkItemFilter, 
+  type FilterState 
+} from "./utils/workItemHelpers";
 
 // localStorage utilities
 const STORAGE_KEYS = {
@@ -420,6 +426,7 @@ const ProjectDashboard: React.FC = () => {
   const [isLoadedFromCache, setIsLoadedFromCache] = useState<boolean>(false);
   const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
   const [editProjectData, setEditProjectData] = useState<Partial<ProjectData["project"]>>({});
+  const [workItemFilter, setWorkItemFilter] = useState<WorkItemFilter>({ status: 'all' });
 
   // Load cached data on mount
   useEffect(() => {
@@ -780,7 +787,12 @@ const ProjectDashboard: React.FC = () => {
     setShowSwitchProjectConfirm(false);
     setIsEditingProject(false);
     setEditProjectData({});
+    setWorkItemFilter({ status: 'all' });
     setShowImportModal(true);
+  };
+
+  const updateStatusFilter = (status: FilterState): void => {
+    setWorkItemFilter({ status });
   };
 
   const toggleProjectEditMode = (): void => {
@@ -793,7 +805,7 @@ const ProjectDashboard: React.FC = () => {
     }
   };
 
-  const updateProjectData = (field: keyof ProjectData["project"], value: any): void => {
+  const updateProjectData = (field: keyof ProjectData["project"], value: unknown): void => {
     setEditProjectData({
       ...editProjectData,
       [field]: value
@@ -866,28 +878,9 @@ const ProjectDashboard: React.FC = () => {
     
     if (validItems.length === 0) return [];
 
-    const itemMap = new Map<string, WorkItemWithChildren>(
-      validItems.map((item) => [item.id, { ...item, children: [] }])
-    );
-    const rootItems: WorkItemWithChildren[] = [];
-
-    validItems.forEach((item) => {
-      if (item.parentId && itemMap.has(item.parentId)) {
-        const parent = itemMap.get(item.parentId);
-        const child = itemMap.get(item.id);
-        if (parent && child) {
-          parent.children.push(child);
-        }
-      } else {
-        const rootItem = itemMap.get(item.id);
-        if (rootItem) {
-          rootItems.push(rootItem);
-        }
-      }
-    });
-
-    return rootItems;
-  }, [projectData]);
+    // Use the filtering utility to build hierarchy with status filter
+    return buildFilteredWorkItemHierarchy(validItems, workItemFilter);
+  }, [projectData, workItemFilter]);
 
   const renderWorkItem = (
     item: WorkItemWithChildren,
@@ -1415,6 +1408,40 @@ const ProjectDashboard: React.FC = () => {
                   <Plus className="w-4 h-4" />
                   <span>Add Work Item</span>
                 </button>
+              </div>
+
+              {/* Status Filter */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Filter by Status:
+                  </label>
+                  <select
+                    value={workItemFilter.status}
+                    onChange={(e) => updateStatusFilter(e.target.value as FilterState)}
+                    className="text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-w-32"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="backlog">Backlog</option>
+                    <option value="todo">Todo</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">Review</option>
+                    <option value="testing">Testing</option>
+                    <option value="done">Done</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                  {workItemFilter.status !== 'all' && (
+                    <button
+                      onClick={() => updateStatusFilter('all')}
+                      className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      type="button"
+                    >
+                      Clear Filter
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* New Work Item Form */}

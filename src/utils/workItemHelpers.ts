@@ -1,4 +1,4 @@
-import type { WorkItem, WorkItemWithChildren, StatusType, PriorityType, WorkItemType } from '../schemas';
+import type { WorkItem, WorkItemWithChildren, StatusType, PriorityType, WorkItemType, WorkItemStatus } from '../schemas';
 
 // Helper function to get all descendant IDs to prevent circular dependencies
 export function getDescendantIds(itemId: string, workItems: WorkItem[]): Set<string> {
@@ -122,4 +122,77 @@ export function sortWorkItemsByHierarchy(workItems: WorkItem[]): WorkItem[] {
     if (typeComparison !== 0) return typeComparison;
     return a.title.localeCompare(b.title);
   });
+}
+
+// Filter types and state
+export type FilterState = WorkItemStatus | 'all';
+
+export interface WorkItemFilter {
+  status: FilterState;
+}
+
+// Filter work items by status while preserving hierarchical relationships
+export function filterWorkItemsByStatus(
+  workItems: WorkItem[], 
+  statusFilter: FilterState
+): WorkItem[] {
+  // Return all items if no filter or 'all' is selected
+  if (statusFilter === 'all') {
+    return workItems;
+  }
+
+  const filteredItems = new Set<string>();
+  const itemMap = new Map<string, WorkItem>(workItems.map(item => [item.id, item]));
+  
+  // First, collect all items that match the filter
+  workItems.forEach(item => {
+    if (item.status === statusFilter) {
+      filteredItems.add(item.id);
+    }
+  });
+
+  // Function to add all ancestors of a given item
+  const addAncestors = (itemId: string): void => {
+    const item = itemMap.get(itemId);
+    if (!item || !item.parentId) return;
+    
+    if (!filteredItems.has(item.parentId)) {
+      filteredItems.add(item.parentId);
+      addAncestors(item.parentId); // Recursively add parent's ancestors
+    }
+  };
+
+  // Function to add all descendants of a given item
+  const addDescendants = (itemId: string): void => {
+    workItems.forEach(item => {
+      if (item.parentId === itemId && !filteredItems.has(item.id)) {
+        filteredItems.add(item.id);
+        addDescendants(item.id); // Recursively add children's descendants
+      }
+    });
+  };
+
+  // Add ancestors for all matching items to preserve hierarchy
+  const matchingItemIds = Array.from(filteredItems);
+  matchingItemIds.forEach(itemId => {
+    addAncestors(itemId);
+  });
+
+  // Add descendants for all included items to show complete subtrees
+  const allIncludedIds = Array.from(filteredItems);
+  allIncludedIds.forEach(itemId => {
+    addDescendants(itemId);
+  });
+
+  // Return filtered items in original order
+  return workItems.filter(item => filteredItems.has(item.id));
+}
+
+// Build filtered hierarchical structure
+export function buildFilteredWorkItemHierarchy(
+  workItems: WorkItem[], 
+  filter: WorkItemFilter
+): WorkItemWithChildren[] {
+  const filteredItems = filterWorkItemsByStatus(workItems, filter.status);
+  return buildWorkItemHierarchy(filteredItems);
 }

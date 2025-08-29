@@ -4,4 +4,5 @@ export interface EditWorkItemFormProps {
   editData: Partial<WorkItem>;
   availableParents: WorkItem[];
   onUpdateField: (field: keyof WorkItem, value: WorkItem[keyof WorkItem]) => void;
+  onSave?: () => void;
 }

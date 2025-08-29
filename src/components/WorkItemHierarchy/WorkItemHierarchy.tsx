@@ -1,12 +1,13 @@
-import { useMemo } from 'react';
 import { WorkItemCard } from '../WorkItemCard';
-import type { WorkItemHierarchyProps, WorkItemWithChildren } from './types';
+import type { WorkItemHierarchyProps } from './types';
+import type { WorkItemWithChildren } from '../../schemas';
 
 export default function WorkItemHierarchy({
   workItems,
   expandedItems,
   editingItems,
   editFormData,
+  availableParents = [],
   onToggleExpanded,
   onToggleEdit,
   onSaveItem,
@@ -19,38 +20,8 @@ export default function WorkItemHierarchy({
   onToggleAcceptanceCriteria,
   onAddChild,
 }: WorkItemHierarchyProps) {
-  const workItemHierarchy = useMemo((): WorkItemWithChildren[] => {
-    if (!workItems || !Array.isArray(workItems)) return [];
-
-    // Filter out invalid items
-    const validItems = workItems.filter(
-      (item) => item && item.id && item.title
-    );
-    
-    if (validItems.length === 0) return [];
-
-    const itemMap = new Map<string, WorkItemWithChildren>(
-      validItems.map((item) => [item.id, { ...item, children: [] }])
-    );
-    const rootItems: WorkItemWithChildren[] = [];
-
-    validItems.forEach((item) => {
-      if (item.parentId && itemMap.has(item.parentId)) {
-        const parent = itemMap.get(item.parentId);
-        const child = itemMap.get(item.id);
-        if (parent && child) {
-          parent.children.push(child);
-        }
-      } else {
-        const rootItem = itemMap.get(item.id);
-        if (rootItem) {
-          rootItems.push(rootItem);
-        }
-      }
-    });
-
-    return rootItems;
-  }, [workItems]);
+  // Work items are already filtered and hierarchical from the parent component
+  const workItemHierarchy = workItems || [];
 
   const renderWorkItem = (
     item: WorkItemWithChildren,
@@ -74,7 +45,7 @@ export default function WorkItemHierarchy({
           isExpanded={isExpanded}
           isEditing={isEditing}
           editData={editFormData[item.id]}
-          availableParents={workItems}
+          availableParents={availableParents}
           onToggleExpanded={() => onToggleExpanded(item.id)}
           onToggleEdit={() => onToggleEdit(item.id)}
           onSave={() => onSaveItem(item.id)}
