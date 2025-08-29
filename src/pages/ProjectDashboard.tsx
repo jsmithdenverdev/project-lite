@@ -6,6 +6,7 @@ import { CreateWorkItemForm } from '../components/CreateWorkItemForm';
 import { ProjectSelector } from '../components/ProjectSelector';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { InitialProjectModal } from '../components/InitialProjectModal';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { useMultiProject } from '../context/MultiProjectContext';
 import type { WorkItem, WorkItemStatus, Priority } from '../schemas';
 
@@ -23,6 +24,11 @@ export default function ProjectDashboard() {
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
   const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
   const [isEditingProject, setIsEditingProject] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [childrenToDelete, setChildrenToDelete] = useState<WorkItem[]>([]);
+  const [isCreatingChild, setIsCreatingChild] = useState(false);
+  const [parentForChild, setParentForChild] = useState<string | null>(null);
 
   const {
     activeProjectId,
@@ -162,10 +168,43 @@ export default function ProjectDashboard() {
     handleToggleEdit(itemId);
   };
 
+  // Helper function to find all descendants of a work item
+  const findAllChildren = (parentId: string, workItems: WorkItem[]): WorkItem[] => {
+    const children: WorkItem[] = [];
+    const directChildren = workItems.filter(item => item.parentId === parentId);
+    
+    for (const child of directChildren) {
+      children.push(child);
+      // Recursively find children of this child
+      children.push(...findAllChildren(child.id, workItems));
+    }
+    
+    return children;
+  };
+
   const handleDeleteItem = async (itemId: string) => {
     if (!currentProjectData) return;
 
-    const updatedWorkItems = currentProjectData.workItems.filter(item => item.id !== itemId);
+    const children = findAllChildren(itemId, currentProjectData.workItems);
+    
+    if (children.length > 0) {
+      // Show confirmation modal for cascading delete
+      setItemToDelete(itemId);
+      setChildrenToDelete(children);
+      setShowDeleteConfirm(true);
+    } else {
+      // Direct delete for items without children
+      await performDelete(itemId);
+    }
+  };
+
+  const performDelete = async (itemId: string) => {
+    if (!currentProjectData) return;
+
+    const children = findAllChildren(itemId, currentProjectData.workItems);
+    const idsToDelete = new Set([itemId, ...children.map(child => child.id)]);
+    
+    const updatedWorkItems = currentProjectData.workItems.filter(item => !idsToDelete.has(item.id));
 
     const updatedProjectData = {
       ...currentProjectData,
@@ -178,6 +217,78 @@ export default function ProjectDashboard() {
     };
 
     await multiProjectActions.updateCurrentProject(updatedProjectData);
+  };
+
+  const confirmCascadingDelete = async () => {
+    if (itemToDelete) {
+      await performDelete(itemToDelete);
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
+      setChildrenToDelete([]);
+    }
+  };
+
+  const handleAddChild = (parentId: string) => {
+    setParentForChild(parentId);
+    setNewItemData({
+      id: crypto.randomUUID(),
+      title: '',
+      description: '',
+      type: 'story',
+      status: 'backlog' as WorkItemStatus,
+      priority: 'medium' as Priority,
+      tags: [],
+      acceptanceCriteria: [],
+      parentId: parentId
+    });
+    setIsCreatingChild(true);
+    setIsCreatingNewItem(false); // Make sure regular create form is closed
+  };
+
+  const handleSaveChildItem = async () => {
+    if (!currentProjectData || !newItemData.title?.trim()) return;
+
+    const newItem: WorkItem = {
+      id: newItemData.id || crypto.randomUUID(),
+      title: newItemData.title.trim(),
+      description: newItemData.description || '',
+      type: newItemData.type || 'story',
+      status: newItemData.status || 'backlog',
+      priority: newItemData.priority || 'medium',
+      tags: newItemData.tags || [],
+      acceptanceCriteria: newItemData.acceptanceCriteria || [],
+      parentId: newItemData.parentId,
+      estimatedEffort: newItemData.estimatedEffort,
+      dependencies: newItemData.dependencies || [],
+      customFields: newItemData.customFields || {}
+    };
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: [...currentProjectData.workItems, newItem],
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString(),
+        totalWorkItems: currentProjectData.workItems.length + 1
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
+    
+    // Auto-expand the parent to show the new child
+    if (newItem.parentId) {
+      setExpandedItems(prev => new Set(prev).add(newItem.parentId!));
+    }
+    
+    setIsCreatingChild(false);
+    setParentForChild(null);
+    setNewItemData({});
+  };
+
+  const handleCancelChildCreation = () => {
+    setIsCreatingChild(false);
+    setParentForChild(null);
+    setNewItemData({});
   };
 
   const handleUpdateField = (itemId: string, field: keyof WorkItem, value: any) => {
@@ -452,6 +563,29 @@ export default function ProjectDashboard() {
             />
           )}
 
+          {/* Create Child Item Form */}
+          {isCreatingChild && parentForChild && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <Plus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100">
+                  Add Child Item
+                </h3>
+                <span className="text-sm text-blue-700 dark:text-blue-300">
+                  to "{currentProjectData.workItems.find(item => item.id === parentForChild)?.title}"
+                </span>
+              </div>
+              <CreateWorkItemForm
+                newItemData={newItemData}
+                availableParents={currentProjectData.workItems}
+                onUpdateField={handleUpdateNewItemField}
+                onSave={handleSaveChildItem}
+                onCancel={handleCancelChildCreation}
+                hideParentSelector={true}
+              />
+            </div>
+          )}
+
           {/* Work Items Hierarchy */}
           <WorkItemHierarchy
             workItems={currentProjectData.workItems}
@@ -468,6 +602,7 @@ export default function ProjectDashboard() {
             onAddAcceptanceCriteria={handleAddAcceptanceCriteria}
             onRemoveAcceptanceCriteria={handleRemoveAcceptanceCriteria}
             onToggleAcceptanceCriteria={handleToggleAcceptanceCriteria}
+            onAddChild={handleAddChild}
           />
         </div>
 
@@ -478,6 +613,41 @@ export default function ProjectDashboard() {
           onProjectCreated={() => {
             setShowNewProjectModal(false);
           }}
+        />
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={confirmCascadingDelete}
+          title="Delete Work Item"
+          message={
+            itemToDelete && currentProjectData ? (
+              <>
+                <p>
+                  Are you sure you want to delete <strong>"{currentProjectData.workItems.find(item => item.id === itemToDelete)?.title}"</strong>?
+                </p>
+                {childrenToDelete.length > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3 mt-2">
+                    <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                      ⚠️ This will also delete {childrenToDelete.length} child item{childrenToDelete.length !== 1 ? 's' : ''}:
+                    </p>
+                    <ul className="text-sm text-amber-700 dark:text-amber-400 mt-2 ml-4 list-disc max-h-32 overflow-y-auto">
+                      {childrenToDelete.map(child => (
+                        <li key={child.id}>{child.title}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  This action cannot be undone.
+                </p>
+              </>
+            ) : 'Are you sure you want to delete this work item?'
+          }
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
         />
       </div>
     </div>

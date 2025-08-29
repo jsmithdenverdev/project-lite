@@ -20,6 +20,7 @@ export interface WorkItemCardProps {
   onAddAcceptanceCriteria: (description: string) => void;
   onRemoveAcceptanceCriteria: (criteriaIndex: number) => void;
   onToggleAcceptanceCriteria: (criteriaIndex: number, completed: boolean) => void;
+  onAddChild?: () => void;
 }
 
 export interface WorkItemDisplayProps {

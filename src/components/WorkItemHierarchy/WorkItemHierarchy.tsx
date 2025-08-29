@@ -17,6 +17,7 @@ export default function WorkItemHierarchy({
   onAddAcceptanceCriteria,
   onRemoveAcceptanceCriteria,
   onToggleAcceptanceCriteria,
+  onAddChild,
 }: WorkItemHierarchyProps) {
   const workItemHierarchy = useMemo((): WorkItemWithChildren[] => {
     if (!workItems || !Array.isArray(workItems)) return [];
@@ -84,6 +85,7 @@ export default function WorkItemHierarchy({
           onAddAcceptanceCriteria={(description) => onAddAcceptanceCriteria(item.id, description)}
           onRemoveAcceptanceCriteria={(criteriaIndex) => onRemoveAcceptanceCriteria(item.id, criteriaIndex)}
           onToggleAcceptanceCriteria={(criteriaIndex, completed) => onToggleAcceptanceCriteria(item.id, criteriaIndex, completed)}
+          onAddChild={onAddChild ? () => onAddChild(item.id) : undefined}
         />
 
         {/* Render children recursively */}
