@@ -1,3 +1,7 @@
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { FormEditWorkItemSchema, type EditWorkItemFormData } from '../../schemas';
 import type { EditWorkItemFormProps } from './types';
 
 export default function EditWorkItemForm({
@@ -6,6 +10,53 @@ export default function EditWorkItemForm({
   onUpdateField,
   onSave,
 }: EditWorkItemFormProps) {
+  // Form management with react-hook-form
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isValid }
+  } = useForm<EditWorkItemFormData>({
+    resolver: zodResolver(FormEditWorkItemSchema),
+    defaultValues: {
+      id: editData.id || '',
+      title: editData.title || '',
+      description: editData.description || '',
+      type: editData.type || 'task',
+      status: editData.status || 'backlog',
+      priority: editData.priority || 'medium',
+      parentId: editData.parentId || '',
+      assignee: editData.assignee || '',
+      dueDate: editData.dueDate ? new Date(editData.dueDate).toISOString().split('T')[0] : '',
+    },
+    mode: 'onChange',
+  });
+
+  // Sync form data back to parent component
+  useEffect(() => {
+    const subscription = watch((value) => {
+      // Update each field that changed
+      Object.entries(value).forEach(([field, fieldValue]) => {
+        if (field === 'dueDate' && fieldValue) {
+          // Convert date back to ISO string for the parent
+          const isoDate = new Date(fieldValue as string).toISOString();
+          if (isoDate !== editData[field as keyof typeof editData]) {
+            onUpdateField(field as keyof typeof editData, isoDate);
+          }
+        } else if (fieldValue !== editData[field as keyof typeof editData]) {
+          onUpdateField(field as keyof typeof editData, fieldValue);
+        }
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onUpdateField, editData]);
+
+  const handleFormSubmit = handleSubmit(() => {
+    if (onSave) {
+      onSave();
+    }
+  });
+
   return (
     <div className="space-y-4">
       {/* Title */}
@@ -15,18 +66,22 @@ export default function EditWorkItemForm({
         </label>
         <input
           type="text"
-          value={editData.title || ''}
-          onChange={(e) => onUpdateField('title', e.target.value)}
+          {...register('title')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              if (editData.title?.trim() && onSave) {
-                onSave();
+              if (isValid && onSave) {
+                handleFormSubmit();
               }
             }
           }}
-          className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          className={`w-full text-sm p-2 border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+            errors.title ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+          }`}
         />
+        {errors.title && (
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.title.message}</p>
+        )}
       </div>
 
       {/* Description */}
@@ -35,8 +90,7 @@ export default function EditWorkItemForm({
           Description
         </label>
         <textarea
-          value={editData.description || ''}
-          onChange={(e) => onUpdateField('description', e.target.value)}
+          {...register('description')}
           rows={2}
           className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         />
@@ -49,8 +103,7 @@ export default function EditWorkItemForm({
             Type
           </label>
           <select
-            value={editData.type || 'task'}
-            onChange={(e) => onUpdateField('type', e.target.value)}
+            {...register('type')}
             className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="epic">Epic</option>
@@ -69,14 +122,13 @@ export default function EditWorkItemForm({
             Status
           </label>
           <select
-            value={editData.status || 'backlog'}
-            onChange={(e) => onUpdateField('status', e.target.value)}
+            {...register('status')}
             className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="backlog">Backlog</option>
             <option value="todo">To Do</option>
             <option value="in_progress">In Progress</option>
-            <option value="in_review">In Review</option>
+            <option value="review">Review</option>
             <option value="testing">Testing</option>
             <option value="done">Done</option>
             <option value="cancelled">Cancelled</option>
@@ -89,8 +141,7 @@ export default function EditWorkItemForm({
             Priority
           </label>
           <select
-            value={editData.priority || 'medium'}
-            onChange={(e) => onUpdateField('priority', e.target.value)}
+            {...register('priority')}
             className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="critical">Critical</option>
@@ -106,8 +157,7 @@ export default function EditWorkItemForm({
             Parent Item
           </label>
           <select
-            value={editData.parentId || ''}
-            onChange={(e) => onUpdateField('parentId', e.target.value || undefined)}
+            {...register('parentId')}
             className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="">No Parent</option>
@@ -128,13 +178,12 @@ export default function EditWorkItemForm({
           </label>
           <input
             type="text"
-            value={editData.assignee || ''}
-            onChange={(e) => onUpdateField('assignee', e.target.value)}
+            {...register('assignee')}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                if (editData.title?.trim() && onSave) {
-                  onSave();
+                if (isValid && onSave) {
+                  handleFormSubmit();
                 }
               }
             }}
@@ -149,8 +198,7 @@ export default function EditWorkItemForm({
           </label>
           <input
             type="date"
-            value={editData.dueDate ? new Date(editData.dueDate).toISOString().split('T')[0] : ''}
-            onChange={(e) => onUpdateField('dueDate', e.target.value ? new Date(e.target.value).toISOString() : '')}
+            {...register('dueDate')}
             className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
         </div>

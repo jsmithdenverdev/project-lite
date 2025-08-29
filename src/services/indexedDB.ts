@@ -335,7 +335,15 @@ class IndexedDBService {
     
     return new Promise((resolve, reject) => {
       const request = transaction.objectStore(STORES.PROJECTS).getAll();
-      request.onsuccess = () => resolve(request.result || []);
+      request.onsuccess = () => {
+        const projects = request.result || [];
+        // Ensure all projects have a status field
+        const projectsWithStatus = projects.map(project => ({
+          ...project,
+          status: project.status || 'backlog'
+        }));
+        resolve(projectsWithStatus);
+      };
       request.onerror = () => reject(request.error);
     });
   }

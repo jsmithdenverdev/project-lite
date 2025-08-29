@@ -168,6 +168,7 @@ export function MultiProjectProvider({ children }: { children: ReactNode }) {
         const dbProject: DBProject = {
           ...projectDataWithName.project,
           id: projectId,
+          status: projectDataWithName.project.status || 'backlog',
           lastAccessed: now,
           isActive: false,
           version: 1

@@ -167,11 +167,13 @@ export function ProjectSelector({ className = '' }: ProjectSelectorProps) {
                   </div>
                   
                   <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}
-                    >
-                      {project.status.replace('_', ' ')}
-                    </span>
+                    {project.status && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}
+                      >
+                        {project.status.replace('_', ' ')}
+                      </span>
+                    )}
                     
                     {project.owner && (
                       <div className="flex items-center space-x-1">
