@@ -8,6 +8,7 @@ export default function AddTagButton({ onAddTag }: AddTagButtonProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (tagValue.trim()) {
       onAddTag(tagValue.trim());
       setTagValue('');
@@ -15,7 +16,8 @@ export default function AddTagButton({ onAddTag }: AddTagButtonProps) {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setTagValue('');
     setIsAdding(false);
   };
@@ -53,7 +55,10 @@ export default function AddTagButton({ onAddTag }: AddTagButtonProps) {
 
   return (
     <button
-      onClick={() => setIsAdding(true)}
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsAdding(true);
+      }}
       className="flex items-center space-x-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
       type="button"
       title="Add tag"

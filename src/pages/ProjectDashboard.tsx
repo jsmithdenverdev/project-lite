@@ -1,271 +1,403 @@
-import { Modal } from '../components/Modal';
-import ProjectImportModal from '../components/ProjectImportModal';
+import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { ProjectCard } from '../components/ProjectCard';
 import { WorkItemHierarchy } from '../components/WorkItemHierarchy';
 import { CreateWorkItemForm } from '../components/CreateWorkItemForm';
-import { ConfirmationModal } from '../components/ConfirmationModal';
-import { useProjectContext } from '../context/ProjectContext';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import { ProjectSelector } from '../components/ProjectSelector';
+import { NewProjectModal } from '../components/NewProjectModal';
+import { InitialProjectModal } from '../components/InitialProjectModal';
+import { useMultiProject } from '../context/MultiProjectContext';
+import type { WorkItem, WorkItemStatus, Priority } from '../schemas';
 
 export default function ProjectDashboard() {
-  const { state, dispatch } = useProjectContext();
-  const {
-    projectData,
-    fileName,
-    isLoadedFromCache,
-    expandedItems,
-    editingItems,
-    editFormData,
-    isCreatingNewItem,
-    newItemData,
-    itemToDelete,
-    showDeleteConfirm,
-    showImportModal,
-    isEditingProject,
-    editProjectData,
-  } = state;
-
-  const { clearStorage } = useLocalStorage();
-  const { hasUnsavedChanges, executeWithConfirmation, confirmAction, cancelAction, showConfirmation } = useUnsavedChanges();
+  const { 
+    state: multiProjectState, 
+    actions: multiProjectActions 
+  } = useMultiProject();
   
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showInitialModal, setShowInitialModal] = useState(false);
+  const [isCreatingNewItem, setIsCreatingNewItem] = useState(false);
+  const [newItemData, setNewItemData] = useState<Partial<WorkItem>>({});
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
+  const [editFormData, setEditFormData] = useState<Record<string, Partial<WorkItem>>>({});
+  const [isEditingProject, setIsEditingProject] = useState(false);
 
-  const handleProjectLoaded = (data: import('../schemas').ProjectData, filename: string): void => {
-    const loadProject = () => {
-      dispatch({ type: 'SET_PROJECT_DATA', payload: { data, fileName: filename } });
-    };
-    
-    executeWithConfirmation(loadProject);
+  const {
+    activeProjectId,
+    currentProjectData,
+    isLoading
+  } = multiProjectState;
+
+  // Show initial modal when there's no active project and loading is complete
+  useEffect(() => {
+    if (!isLoading && !activeProjectId && !currentProjectData && !showNewProjectModal) {
+      setShowInitialModal(true);
+    } else {
+      setShowInitialModal(false);
+    }
+  }, [isLoading, activeProjectId, currentProjectData, showNewProjectModal]);
+
+  // Auto-save project data to IndexedDB when it changes
+  useEffect(() => {
+    if (currentProjectData && activeProjectId) {
+      const saveTimeout = setTimeout(async () => {
+        try {
+          await multiProjectActions.updateCurrentProject(currentProjectData);
+        } catch (error) {
+          console.error('Failed to auto-save project:', error);
+        }
+      }, 1000); // Debounce saves by 1 second
+
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [currentProjectData, activeProjectId, multiProjectActions]);
+
+  // Work Item Handlers
+  const handleCreateNewItem = () => {
+    setNewItemData({
+      id: crypto.randomUUID(),
+      title: '',
+      description: '',
+      type: 'story',
+      status: 'backlog' as WorkItemStatus,
+      priority: 'medium' as Priority,
+      tags: [],
+      acceptanceCriteria: []
+    });
+    setIsCreatingNewItem(true);
   };
 
-  const handleUnload = (): void => {
-    if (projectData) {
-      const unloadProject = () => {
-        // Download the file first
-        const dataStr = JSON.stringify(projectData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName || "project-data.json";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        // Clear localStorage to allow loading different project
-        clearStorage();
-        
-        // Reset state and show import modal
-        dispatch({ type: 'CLEAR_PROJECT_DATA' });
-      };
+  const handleSaveNewItem = async () => {
+    if (!currentProjectData || !newItemData.title?.trim()) return;
 
-      executeWithConfirmation(unloadProject);
+    const newItem: WorkItem = {
+      id: newItemData.id || crypto.randomUUID(),
+      title: newItemData.title.trim(),
+      description: newItemData.description || '',
+      type: newItemData.type || 'story',
+      status: newItemData.status || 'backlog',
+      priority: newItemData.priority || 'medium',
+      tags: newItemData.tags || [],
+      acceptanceCriteria: newItemData.acceptanceCriteria || [],
+      parentId: newItemData.parentId,
+      estimatedEffort: newItemData.estimatedEffort,
+      dependencies: newItemData.dependencies || [],
+      customFields: newItemData.customFields || {}
+    };
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: [...currentProjectData.workItems, newItem],
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString(),
+        totalWorkItems: currentProjectData.workItems.length + 1
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
+    setIsCreatingNewItem(false);
+    setNewItemData({});
+  };
+
+  const handleCancelCreateNewItem = () => {
+    setIsCreatingNewItem(false);
+    setNewItemData({});
+  };
+
+  const handleUpdateNewItemField = (field: keyof WorkItem, value: any) => {
+    setNewItemData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleToggleExpanded = (itemId: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleEdit = (itemId: string) => {
+    if (editingItems.has(itemId)) {
+      setEditingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    } else {
+      const item = currentProjectData?.workItems.find(i => i.id === itemId);
+      if (item) {
+        setEditFormData(prev => ({ ...prev, [itemId]: { ...item } }));
+        setEditingItems(prev => new Set(prev).add(itemId));
+      }
     }
   };
 
-  const handleToggleExpanded = (itemId: string): void => {
-    dispatch({ type: 'TOGGLE_EXPANDED', payload: itemId });
+  const handleSaveItem = async (itemId: string) => {
+    if (!currentProjectData) return;
+
+    const editedItem = editFormData[itemId];
+    if (!editedItem) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item =>
+      item.id === itemId ? { ...item, ...editedItem } : item
+    );
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
+    handleToggleEdit(itemId);
   };
 
-  const handleToggleEdit = (itemId: string): void => {
-    const isCurrentlyEditing = editingItems.has(itemId);
-    dispatch({ type: 'SET_EDITING', payload: { itemId, editing: !isCurrentlyEditing } });
+  const handleDeleteItem = async (itemId: string) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.filter(item => item.id !== itemId);
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString(),
+        totalWorkItems: updatedWorkItems.length
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleUpdateField = (itemId: string, field: keyof import('../schemas').WorkItem, value: import('../schemas').WorkItem[keyof import('../schemas').WorkItem]): void => {
-    dispatch({ type: 'UPDATE_EDIT_FORM', payload: { itemId, field, value } });
+  const handleUpdateField = (itemId: string, field: keyof WorkItem, value: any) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: value }
+    }));
   };
 
-  const handleSaveItem = (itemId: string): void => {
-    dispatch({ type: 'SAVE_EDIT_ITEM', payload: itemId });
-  };
+  const handleAddTag = async (itemId: string, tag: string) => {
+    if (!currentProjectData) return;
 
-  const handleDeleteItem = (itemId: string): void => {
-    dispatch({ type: 'SET_DELETE_ITEM', payload: itemId });
-    dispatch({ type: 'TOGGLE_DELETE_CONFIRM' });
-  };
-
-  const handleAddTag = (itemId: string, tag: string): void => {
-    dispatch({ type: 'ADD_TAG', payload: { itemId, tag } });
-  };
-
-  const handleRemoveTag = (itemId: string, tagIndex: number): void => {
-    dispatch({ type: 'REMOVE_TAG', payload: { itemId, tagIndex } });
-  };
-
-  const handleAddAcceptanceCriteria = (itemId: string, description: string): void => {
-    dispatch({ type: 'ADD_ACCEPTANCE_CRITERIA', payload: { itemId, description } });
-  };
-
-  const handleRemoveAcceptanceCriteria = (itemId: string, criteriaIndex: number): void => {
-    dispatch({ type: 'REMOVE_ACCEPTANCE_CRITERIA', payload: { itemId, criteriaIndex } });
-  };
-
-  const handleToggleAcceptanceCriteria = (itemId: string, criteriaIndex: number, completed: boolean): void => {
-    if (!projectData) return;
-
-    const updatedWorkItems = projectData.workItems.map((item) => {
-      if (item.id === itemId && item.acceptanceCriteria) {
-        const updatedCriteria = [...item.acceptanceCriteria];
-        updatedCriteria[criteriaIndex] = {
-          ...updatedCriteria[criteriaIndex],
-          completed,
-        };
-        return { ...item, acceptanceCriteria: updatedCriteria };
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentTags = item.tags || [];
+        if (!currentTags.includes(tag)) {
+          return {
+            ...item,
+            tags: [...currentTags, tag]
+          };
+        }
       }
       return item;
     });
 
-    dispatch({ type: 'SET_PROJECT_DATA', payload: {
-      data: {
-        ...projectData,
-        workItems: updatedWorkItems,
-      },
-      fileName
-    }});
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleStartCreateNewItem = (): void => {
-    dispatch({ type: 'SET_CREATING_ITEM', payload: true });
+  const handleRemoveTag = async (itemId: string, tagIndex: number) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentTags = item.tags || [];
+        return {
+          ...item,
+          tags: currentTags.filter((_, i) => i !== tagIndex)
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleCancelCreateNewItem = (): void => {
-    dispatch({ type: 'SET_CREATING_ITEM', payload: false });
+  const handleAddAcceptanceCriteria = async (itemId: string, description: string) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        return {
+          ...item,
+          acceptanceCriteria: [
+            ...currentCriteria,
+            { id: crypto.randomUUID(), description: description, completed: false }
+          ]
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleSaveNewItem = (): void => {
-    dispatch({ type: 'ADD_NEW_ITEM' });
+  const handleRemoveAcceptanceCriteria = async (itemId: string, criteriaIndex: number) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        return {
+          ...item,
+          acceptanceCriteria: currentCriteria.filter((_, i) => i !== criteriaIndex)
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  const handleUpdateNewItemField = (field: keyof import('../schemas').WorkItem, value: import('../schemas').WorkItem[keyof import('../schemas').WorkItem]): void => {
-    dispatch({ type: 'UPDATE_NEW_ITEM', payload: { field, value } });
+  const handleToggleAcceptanceCriteria = async (itemId: string, criteriaIndex: number, completed: boolean) => {
+    if (!currentProjectData) return;
+
+    const updatedWorkItems = currentProjectData.workItems.map(item => {
+      if (item.id === itemId) {
+        const currentCriteria = item.acceptanceCriteria || [];
+        const updatedCriteria = currentCriteria.map((criteria, i) =>
+          i === criteriaIndex ? { ...criteria, completed: completed } : criteria
+        );
+        return {
+          ...item,
+          acceptanceCriteria: updatedCriteria
+        };
+      }
+      return item;
+    });
+
+    const updatedProjectData = {
+      ...currentProjectData,
+      workItems: updatedWorkItems,
+      metadata: {
+        ...currentProjectData.metadata,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+
+    await multiProjectActions.updateCurrentProject(updatedProjectData);
   };
 
-  if (!projectData) {
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4">Project Pulse</h1>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state - show initial modal
+  if (!currentProjectData) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <Modal
-          isOpen={showImportModal}
-          onClose={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-          title="Welcome to Project Pulse"
-          size="lg"
-        >
-          <ProjectImportModal 
-            isOpen={showImportModal}
-            onProjectLoaded={handleProjectLoaded}
-            onClose={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-          />
-        </Modal>
+        <InitialProjectModal
+          isOpen={showInitialModal}
+          onClose={() => setShowInitialModal(false)}
+        />
+        
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Project Pulse</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">Load a project to get started</p>
-            {!showImportModal && (
-              <button
-                onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                type="button"
-              >
-                Load Project
-              </button>
-            )}
+          <div className="text-center max-w-md mx-auto px-4">
+            <h1 className="text-3xl font-bold mb-4">Project Pulse</h1>
+            <p className="text-gray-600 dark:text-gray-400">Ready to start</p>
           </div>
         </div>
       </div>
     );
   }
 
+  // Main dashboard with active project
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Cached data notification */}
-      {isLoadedFromCache && (
-        <div className="bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 px-4 py-3 rounded mb-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Loaded cached project: {fileName}</span>
-            <button
-              onClick={() => dispatch({ type: 'SET_CACHE_LOADED', payload: false })}
-              className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100"
-              type="button"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        {/* Mobile Header */}
         <div className="md:hidden mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2 mb-2">
-            <span>Project Pulse</span>
-            {hasUnsavedChanges && (
-              <span className="text-orange-500 text-lg" title="You have unsaved changes">
-                ●
-              </span>
-            )}
-          </h1>
-          {fileName && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              {fileName}
-              {hasUnsavedChanges && (
-                <span className="text-orange-500 ml-2">• Unsaved changes</span>
-              )}
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Project Pulse
+            </h1>
+          </div>
+          
+          <div className="flex items-center space-x-2 mb-4">
+            <ProjectSelector className="flex-1" />
             <button
-              onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={() => setShowNewProjectModal(true)}
+              className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               type="button"
+              title="New Project"
             >
-              Load Project
-            </button>
-            <button
-              onClick={handleUnload}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              type="button"
-            >
-              Save & Unload Project
+              <Plus className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Desktop Header */}
         <div className="hidden md:flex md:justify-between md:items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
-              <span>Project Pulse</span>
-              {hasUnsavedChanges && (
-                <span className="text-orange-500 text-lg" title="You have unsaved changes">
-                  ●
-                </span>
-              )}
+          <div className="flex items-center space-x-4">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Project Pulse
             </h1>
-            {fileName && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {fileName}
-                {hasUnsavedChanges && (
-                  <span className="text-orange-500 ml-2">• Unsaved changes</span>
-                )}
-              </p>
-            )}
+            <ProjectSelector />
           </div>
-          <div className="flex gap-2">
+          
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={() => setShowNewProjectModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               type="button"
             >
-              Load Project
-            </button>
-            <button
-              onClick={handleUnload}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              type="button"
-            >
-              Save & Unload Project
+              <Plus className="w-4 h-4" />
+              <span>New Project</span>
             </button>
           </div>
         </div>
@@ -273,20 +405,24 @@ export default function ProjectDashboard() {
         {/* Project Metadata */}
         <div className="mb-6">
           <ProjectCard
-            project={projectData.project}
+            project={currentProjectData.project}
             metadata={{
-              ...projectData.metadata,
-              totalWorkItems: projectData.workItems.length,
-              completedWorkItems: projectData.workItems.filter(item => item.status === 'done').length,
+              ...currentProjectData.metadata,
+              totalWorkItems: currentProjectData.workItems.length,
+              completedWorkItems: currentProjectData.workItems.filter(item => item.status === 'done').length,
             }}
             isEditing={isEditingProject}
-            editData={editProjectData}
-            onEdit={() => dispatch({ type: 'SET_PROJECT_EDITING', payload: true })}
-            onSave={() => {
-              dispatch({ type: 'SAVE_PROJECT_CHANGES' });
+            editData={currentProjectData.project}
+            onEdit={() => setIsEditingProject(true)}
+            onSave={async () => {
+              await multiProjectActions.updateCurrentProject(currentProjectData);
+              setIsEditingProject(false);
             }}
-            onCancel={() => dispatch({ type: 'SET_PROJECT_EDITING', payload: false })}
-            onUpdateField={(field, value) => dispatch({ type: 'UPDATE_PROJECT_EDIT', payload: { field, value } })}
+            onCancel={() => setIsEditingProject(false)}
+            onUpdateField={(field: string, value: any) => {
+              // Update project field logic would go here
+              console.log('Project field update:', field, value);
+            }}
           />
         </div>
 
@@ -294,14 +430,13 @@ export default function ProjectDashboard() {
         <div className="space-y-6">
           {/* Add Work Item Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Work Items
-            </h3>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Work Items</h2>
             <button
-              onClick={handleStartCreateNewItem}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              onClick={handleCreateNewItem}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               type="button"
             >
+              <Plus className="w-4 h-4" />
               <span>Add Work Item</span>
             </button>
           </div>
@@ -310,7 +445,7 @@ export default function ProjectDashboard() {
           {isCreatingNewItem && (
             <CreateWorkItemForm
               newItemData={newItemData}
-              availableParents={projectData.workItems || []}
+              availableParents={currentProjectData.workItems}
               onUpdateField={handleUpdateNewItemField}
               onSave={handleSaveNewItem}
               onCancel={handleCancelCreateNewItem}
@@ -319,7 +454,7 @@ export default function ProjectDashboard() {
 
           {/* Work Items Hierarchy */}
           <WorkItemHierarchy
-            workItems={projectData.workItems || []}
+            workItems={currentProjectData.workItems}
             expandedItems={expandedItems}
             editingItems={editingItems}
             editFormData={editFormData}
@@ -336,63 +471,13 @@ export default function ProjectDashboard() {
           />
         </div>
 
-        {/* Modals */}
-        <Modal
-          isOpen={showImportModal}
-          onClose={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-          title="Import Project"
-          size="lg"
-        >
-          <ProjectImportModal 
-            isOpen={showImportModal}
-            onProjectLoaded={handleProjectLoaded}
-            onClose={() => dispatch({ type: 'TOGGLE_IMPORT_MODAL' })}
-          />
-        </Modal>
-
-        {/* Delete Confirmation Modal */}
-        <Modal
-          isOpen={showDeleteConfirm}
-          onClose={() => dispatch({ type: 'TOGGLE_DELETE_CONFIRM' })}
-          title="Confirm Delete"
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Are you sure you want to delete this work item? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => dispatch({ type: 'TOGGLE_DELETE_CONFIRM' })}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (itemToDelete) {
-                    dispatch({ type: 'DELETE_WORK_ITEM', payload: itemToDelete });
-                  }
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                type="button"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </Modal>
-
-        {/* Unsaved Changes Confirmation Modal */}
-        <ConfirmationModal
-          isOpen={showConfirmation}
-          onClose={cancelAction}
-          onConfirm={confirmAction}
-          title="Unsaved Changes"
-          message="You have unsaved changes that will be lost. Are you sure you want to continue?"
-          confirmText="Continue"
-          cancelText="Cancel"
-          variant="warning"
+        {/* New Project Modal */}
+        <NewProjectModal
+          isOpen={showNewProjectModal}
+          onClose={() => setShowNewProjectModal(false)}
+          onProjectCreated={() => {
+            setShowNewProjectModal(false);
+          }}
         />
       </div>
     </div>

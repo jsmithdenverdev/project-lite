@@ -8,6 +8,7 @@ export default function AddAcceptanceCriteriaButton({ onAddCriteria }: AddAccept
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (criteriaValue.trim()) {
       onAddCriteria(criteriaValue.trim());
       setCriteriaValue('');
@@ -15,7 +16,8 @@ export default function AddAcceptanceCriteriaButton({ onAddCriteria }: AddAccept
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setCriteriaValue('');
     setIsAdding(false);
   };
@@ -58,7 +60,10 @@ export default function AddAcceptanceCriteriaButton({ onAddCriteria }: AddAccept
 
   return (
     <button
-      onClick={() => setIsAdding(true)}
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsAdding(true);
+      }}
       className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
       type="button"
     >
