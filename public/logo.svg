@@ -1,0 +1,36 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- 
+      Favicon for Project-Lite
+      Concept: Combines a project document/checklist with a sync arrow to represent local data persistence.
+      The design is clean, modern, and scalable, adapted for a dark theme.
+    -->
+
+    <!-- Define the background gradient for the dark theme -->
+    <defs>
+        <linearGradient id="backgroundGradient" x1="0" y1="0" x2="256" y2="256">
+            <stop offset="0%" stop-color="#1F2937"/> <!-- Dark Slate Gray -->
+            <stop offset="100%" stop-color="#111827"/> <!-- Darker Gray -->
+        </linearGradient>
+    </defs>
+
+    <!-- Background: A rounded square provides a friendly and modern container -->
+    <rect width="256" height="256" rx="48" fill="url(#backgroundGradient)"/>
+
+    <!-- Central Icon Group: Scaled and centered for visual balance -->
+    <g transform="translate(48 48) scale(1)">
+        <!-- Sync Arrow: Uses the bright green accent color from the website -->
+        <path d="M 136.53 109.81 A 64 64 0 1 1 128 16" stroke="#22C55E" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 100.91 144.91 L 136.53 109.81 L 101.43 74.19" stroke="#22C55E" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+        
+        <!-- Document Icon: Represents a project or task list, styled for the dark theme -->
+        <g transform="translate(40 40)">
+            <!-- Document Body -->
+            <rect x="8" y="8" width="64" height="64" rx="8" fill="#4B5563"/>
+            
+            <!-- Checklist Lines: Represent tasks within a project -->
+            <line x1="20" y1="24" x2="60" y2="24" stroke="#D1D5DB" stroke-width="6" stroke-linecap="round"/>
+            <line x1="20" y1="40" x2="60" y2="40" stroke="#D1D5DB" stroke-width="6" stroke-linecap="round"/>
+            <line x1="20" y1="56" x2="44" y2="56" stroke="#D1D5DB" stroke-width="6" stroke-linecap="round"/>
+        </g>
+    </g>
+</svg>
