@@ -113,6 +113,33 @@ export interface WorkItemWithChildren extends WorkItem {
   children: WorkItemWithChildren[];
 }
 
+// Filter types for expandable filter system
+export const FilterTypeSchema = z.enum(["status", "type", "priority", "tags", "assignee"]);
+export type FilterType = z.infer<typeof FilterTypeSchema>;
+
+export interface FilterValue {
+  id: string;
+  label: string;
+  value: string | string[];
+  type: FilterType;
+}
+
+export interface FilterOptions {
+  type: FilterType;
+  label: string;
+  icon?: string;
+  options: Array<{
+    value: string;
+    label: string;
+    color?: string;
+  }>;
+}
+
+export interface FilterState {
+  activeFilters: FilterValue[];
+  availableFilters: FilterOptions[];
+}
+
 // Type aliases for backward compatibility
 export type StatusType = WorkItemStatus;
 export type PriorityType = Priority;

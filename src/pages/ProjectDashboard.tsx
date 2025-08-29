@@ -7,7 +7,8 @@ import { ProjectSelector } from '../components/ProjectSelector';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { InitialProjectModal } from '../components/InitialProjectModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
-import { StatusFilter } from '../components/StatusFilter';
+import { FilterBar } from '../components/FilterBar';
+import { useFilters } from '../hooks/useFilters';
 import { useMultiProject } from '../context/MultiProjectContext';
 import type { WorkItem, WorkItemStatus, Priority } from '../schemas';
 
@@ -30,13 +31,21 @@ export default function ProjectDashboard() {
   const [childrenToDelete, setChildrenToDelete] = useState<WorkItem[]>([]);
   const [isCreatingChild, setIsCreatingChild] = useState(false);
   const [parentForChild, setParentForChild] = useState<string | null>(null);
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<WorkItemStatus | 'all'>('all');
 
   const {
     activeProjectId,
     currentProjectData,
     isLoading
   } = multiProjectState;
+
+  // Use filters hook for filtering logic
+  const {
+    filterState,
+    addFilter,
+    removeFilter,
+    clearAllFilters,
+    filteredWorkItems
+  } = useFilters({ workItems: currentProjectData?.workItems || [] });
 
   // Show initial modal when there's no active project and loading is complete
   useEffect(() => {
@@ -554,17 +563,14 @@ export default function ProjectDashboard() {
             </button>
           </div>
 
-          {/* Status Filter */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Status</h3>
-              <StatusFilter
-                selectedStatus={selectedStatusFilter}
-                onStatusChange={setSelectedStatusFilter}
-                className="flex-wrap"
-              />
-            </div>
-          </div>
+          {/* Filters */}
+          <FilterBar
+            activeFilters={filterState.activeFilters}
+            availableFilters={filterState.availableFilters}
+            onAddFilter={addFilter}
+            onRemoveFilter={removeFilter}
+            onClearAllFilters={clearAllFilters}
+          />
 
           {/* Create New Item Form */}
           {isCreatingNewItem && (
@@ -602,11 +608,11 @@ export default function ProjectDashboard() {
 
           {/* Work Items Hierarchy */}
           <WorkItemHierarchy
-            workItems={currentProjectData.workItems}
+            workItems={filteredWorkItems}
             expandedItems={expandedItems}
             editingItems={editingItems}
             editFormData={editFormData}
-            statusFilter={selectedStatusFilter}
+            availableParents={currentProjectData.workItems}
             onToggleExpanded={handleToggleExpanded}
             onToggleEdit={handleToggleEdit}
             onSaveItem={handleSaveItem}

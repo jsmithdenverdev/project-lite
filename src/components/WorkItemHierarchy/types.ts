@@ -1,15 +1,12 @@
-import type { WorkItem, WorkItemStatus } from '../../schemas';
+import type { WorkItem, WorkItemWithChildren } from '../../schemas';
 
-export interface WorkItemWithChildren extends WorkItem {
-  children: WorkItemWithChildren[];
-}
 
 export interface WorkItemHierarchyProps {
-  workItems: WorkItem[];
+  workItems: WorkItemWithChildren[];
   expandedItems: Set<string>;
   editingItems: Set<string>;
   editFormData: Record<string, Partial<WorkItem>>;
-  statusFilter?: WorkItemStatus | 'all';
+  availableParents?: WorkItem[];
   
   // Event handlers
   onToggleExpanded: (itemId: string) => void;
