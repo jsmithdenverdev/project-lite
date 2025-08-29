@@ -4,6 +4,7 @@ export default function EditWorkItemForm({
   editData,
   availableParents,
   onUpdateField,
+  onSave,
 }: EditWorkItemFormProps) {
   return (
     <div className="space-y-4">
@@ -16,6 +17,14 @@ export default function EditWorkItemForm({
           type="text"
           value={editData.title || ''}
           onChange={(e) => onUpdateField('title', e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (editData.title?.trim() && onSave) {
+                onSave();
+              }
+            }
+          }}
           className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         />
       </div>
@@ -121,6 +130,14 @@ export default function EditWorkItemForm({
             type="text"
             value={editData.assignee || ''}
             onChange={(e) => onUpdateField('assignee', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (editData.title?.trim() && onSave) {
+                  onSave();
+                }
+              }
+            }}
             className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
         </div>

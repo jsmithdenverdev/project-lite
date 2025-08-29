@@ -1,7 +1,7 @@
 import type { StatusType, PriorityType, EstimatedEffort } from '../../schemas';
 import type { ProjectCardEditProps } from './types';
 
-export default function ProjectCardEdit({ editData, onUpdateField }: ProjectCardEditProps) {
+export default function ProjectCardEdit({ editData, onUpdateField, onSave }: ProjectCardEditProps) {
   return (
     <div className="flex-1 space-y-4">
       {/* Project Name */}
@@ -13,6 +13,14 @@ export default function ProjectCardEdit({ editData, onUpdateField }: ProjectCard
           type="text"
           value={editData.name || ""}
           onChange={(e) => onUpdateField("name", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (editData.name?.trim() && onSave) {
+                onSave();
+              }
+            }
+          }}
           className="w-full text-lg font-bold p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         />
       </div>

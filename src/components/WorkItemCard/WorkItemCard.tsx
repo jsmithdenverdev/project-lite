@@ -144,6 +144,7 @@ export default function WorkItemCard({
               editData={_editData || item}
               availableParents={_availableParents}
               onUpdateField={_onUpdateField}
+              onSave={onSave}
             />
           ) : (
             <div>
@@ -292,6 +293,7 @@ export default function WorkItemCard({
                 editData={_editData || item}
                 availableParents={_availableParents}
                 onUpdateField={_onUpdateField}
+                onSave={onSave}
               />
             ) : (
               <div>

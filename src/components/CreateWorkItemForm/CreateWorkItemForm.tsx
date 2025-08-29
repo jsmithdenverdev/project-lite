@@ -34,6 +34,14 @@ export default function CreateWorkItemForm({
             type="text"
             value={newItemData.title || ''}
             onChange={(e) => onUpdateField('title', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (newItemData.title?.trim()) {
+                  onSave();
+                }
+              }
+            }}
             placeholder="Enter work item title..."
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             autoFocus
@@ -143,6 +151,14 @@ export default function CreateWorkItemForm({
             type="text"
             value={newItemData.assignee || ''}
             onChange={(e) => onUpdateField('assignee', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (newItemData.title?.trim()) {
+                  onSave();
+                }
+              }
+            }}
             placeholder="Enter assignee..."
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />

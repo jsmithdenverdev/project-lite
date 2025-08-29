@@ -55,7 +55,8 @@ export default function ProjectCard({
           {isEditing ? (
             <ProjectCardEdit 
               editData={editData} 
-              onUpdateField={onUpdateField} 
+              onUpdateField={onUpdateField}
+              onSave={onSave}
             />
           ) : (
             <div>
@@ -75,7 +76,8 @@ export default function ProjectCard({
         {isEditing ? (
           <ProjectCardEdit 
             editData={editData} 
-            onUpdateField={onUpdateField} 
+            onUpdateField={onUpdateField}
+            onSave={onSave}
           />
         ) : (
           <div>
