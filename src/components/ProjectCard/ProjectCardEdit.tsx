@@ -24,23 +24,24 @@ export default function ProjectCardEdit({ editData, onUpdateField, onSave, onVal
     mode: 'onChange',
   });
 
-  // Notify parent about validation state
+  // Watch the name field for changes
+  const nameValue = watch('name');
+  
+  // Notify parent about validation state whenever name changes
   useEffect(() => {
     if (onValidationChange) {
-      // Check if name has content
-      const nameValue = watch('name');
       const hasValidName = Boolean(nameValue && nameValue.trim().length > 0);
       onValidationChange(hasValidName);
     }
-  }, [watch, onValidationChange]);
+  }, [nameValue, onValidationChange]);
   
   // Set initial validation state
   useEffect(() => {
     if (onValidationChange) {
-      const hasValidName = editData.name && editData.name.trim().length > 0;
-      onValidationChange(hasValidName || false);
+      const hasValidName = Boolean(editData.name && editData.name.trim().length > 0);
+      onValidationChange(hasValidName);
     }
-  }, []);
+  }, [editData.name, onValidationChange]);
 
   // Sync form data back to parent component
   useEffect(() => {

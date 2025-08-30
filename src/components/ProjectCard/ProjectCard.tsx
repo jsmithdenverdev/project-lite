@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Edit3, Save, X } from 'lucide-react';
 import { StatusBadge } from '../StatusBadge';
 import ProjectCardEdit from './ProjectCardEdit';
@@ -16,10 +16,21 @@ export default function ProjectCard({
   onUpdateField,
 }: ProjectCardProps) {
   // Initialize validation state based on whether project has a name
-  const [isFormValid, setIsFormValid] = useState(() => {
-    const currentData = editData || project;
-    return currentData.name && currentData.name.trim().length > 0;
-  });
+  const [isFormValid, setIsFormValid] = useState(true);
+  
+  // Handle validation state change from form
+  const handleValidationChange = (isValid: boolean) => {
+    setIsFormValid(isValid);
+  };
+  
+  // Update validation state when editing state changes
+  useEffect(() => {
+    if (isEditing) {
+      const currentData = editData || project;
+      const isValid = Boolean(currentData.name && currentData.name.trim().length > 0);
+      setIsFormValid(isValid);
+    }
+  }, [isEditing, editData, project]);
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
       {/* Mobile Layout */}
@@ -47,9 +58,13 @@ export default function ProjectCard({
               <button
                 onClick={onSave}
                 disabled={!isFormValid}
-                className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                className={`p-1 transition-colors ${
+                  !isFormValid 
+                    ? 'text-gray-400 cursor-not-allowed' 
+                    : 'text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400'
+                }`}
                 type="button"
-                title="Save changes"
+                title={!isFormValid ? "Project name is required" : "Save changes"}
               >
                 <Save className="w-4 h-4" />
               </button>
@@ -64,7 +79,7 @@ export default function ProjectCard({
               editData={editData} 
               onUpdateField={onUpdateField}
               onSave={onSave}
-              onValidationChange={setIsFormValid}
+              onValidationChange={handleValidationChange}
             />
           ) : (
             <div>
@@ -86,7 +101,7 @@ export default function ProjectCard({
             editData={editData} 
             onUpdateField={onUpdateField}
             onSave={onSave}
-            onValidationChange={setIsFormValid}
+            onValidationChange={handleValidationChange}
           />
         ) : (
           <div>
@@ -121,9 +136,13 @@ export default function ProjectCard({
             <button
               onClick={onSave}
               disabled={!isFormValid}
-              className="p-1 text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+              className={`p-1 transition-colors ${
+                !isFormValid 
+                  ? 'text-gray-400 cursor-not-allowed' 
+                  : 'text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400'
+              }`}
               type="button"
-              title="Save changes"
+              title={!isFormValid ? "Project name is required" : "Save changes"}
             >
               <Save className="w-4 h-4" />
             </button>

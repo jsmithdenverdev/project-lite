@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -41,10 +41,15 @@ export default function WorkItemCard({
   onAddChild,
 }: WorkItemCardProps) {
   // Initialize validation state based on whether item has a title
-  const [isFormValid, setIsFormValid] = useState(() => {
-    const currentData = _editData || item;
-    return currentData.title && currentData.title.trim().length > 0;
-  });
+  const [isFormValid, setIsFormValid] = useState(true);
+  
+  // Update validation state when editing state changes
+  useEffect(() => {
+    if (isEditing) {
+      const currentData = _editData || item;
+      setIsFormValid(Boolean(currentData.title && currentData.title.trim().length > 0));
+    }
+  }, [isEditing, _editData, item]);
 
   // Defensive checks to prevent crashes
   if (!item || !item.id || !item.title) {
